@@ -1,58 +1,87 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Rabbit RS Playground
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel Sail playground for the [php-rabbit-rs](https://github.com/Goopil/php-rabbit-rs) native PHP extension (Rust-powered RabbitMQ transport) and [php-rabbit-rs-laravel](https://github.com/Goopil/php-rabbit-rs-laravel) queue driver.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Two simultaneous RabbitMQ setups**: single-node + 3-node quorum cluster
+- **3 vhosts** per setup: `/default`, `/orders`, `/notifications`
+- **8 queues** per setup (16 total) with quorum type, dead-lettering, and publisher confirms
+- **8 demo jobs** exercising all vhosts and queues
+- **Multi-broker configuration** showcasing rabbit-rs's multi-vhost and weighted-fair-scheduling capabilities
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Prerequisites
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Docker + Docker Compose v2
+- Node.js (for frontend assets)
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Quick Start
 
 ```bash
-composer require laravel/boost --dev
+# 1. Build the Sail image (installs the rabbit_rs extension via PIE)
+make build
 
-php artisan boost:install
+# 2. Start all containers (Laravel + MySQL + 2 RabbitMQ setups)
+make up
+
+# 3. Create RabbitMQ vhosts
+make setup-vhosts
+
+# 4. Dispatch demo jobs to both setups
+make demo
+
+# 5. Start workers (in a separate terminal)
+make workers-simple
+make workers-cluster
+
+# 6. Check status
+make status
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Management UIs
 
-## Contributing
+| Setup | URL | Credentials |
+|-------|-----|------------|
+| Simple | http://localhost:15672 | guest / guest |
+| Cluster | http://localhost:15673 | guest / guest |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Queue Topology
 
-## Code of Conduct
+| Vhost | Queue | Exchange |
+|-------|-------|----------|
+| `/default` | `default`, `high-priority` | `laravel.jobs` |
+| `/orders` | `created`, `paid`, `shipped` | `laravel.orders` |
+| `/notifications` | `email`, `sms`, `push` | `laravel.notifications` |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+All queues use the `<setup>.<vhost>.<queue>` naming convention (e.g. `simple.default.default`).
 
-## Security Vulnerabilities
+## Worker Commands
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+# Simple setup workers
+sail artisan rabbit-rs:work --queue=simple.default
+sail artisan rabbit-rs:work --queue=simple.orders
+sail artisan rabbit-rs:work --queue=simple.notifications
 
-## License
+# Cluster setup workers
+sail artisan rabbit-rs:work --queue=cluster.default
+sail artisan rabbit-rs:work --queue=cluster.orders
+sail artisan rabbit-rs:work --queue=cluster.notifications
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Configuration
+
+- `config/rabbit-rs.php` — 6 brokers, 16 routes, 6 worker profiles
+- `docker/8.5/Dockerfile` — PIE + rabbit-rs-native extension
+- `docker-compose.yml` — 4 RabbitMQ services (1 simple + 3 cluster nodes)
+- `docker/rabbitmq/cluster/` — cluster peer discovery config
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Extension not loaded | Rebuild: `make build` then `make up` |
+| Cluster not forming | Check `docker logs rabbitmq-1`; ensure all 3 nodes share the Erlang cookie |
+| Composer rejects rabbit-rs-laravel | Must run inside Sail: `sail composer require ...` (extension is in the container, not on macOS) |
+| Vhost creation fails | Ensure RabbitMQ is healthy: `docker compose ps`, then re-run `make setup-vhosts` |
+| `rabbitmq:4.3-management` not found | Use `rabbitmq:4-management` in docker-compose.yml as fallback |
