@@ -1,94 +1,68 @@
 <?php
 
-declare(strict_types=1);
-
-use Illuminate\Support\Env;
-
-/*
-|--------------------------------------------------------------------------
-| Rabbit RS — Native RabbitMQ Queue Driver
-|--------------------------------------------------------------------------
-|
-| This file is the entry point for configuring the Rabbit RS native queue
-| driver. The driver delegates all AMQP I/O to a Rust extension that
-| manages connection pools, publisher confirms, consumer scheduling,
-| and automatic recovery — none of which runs in PHP userspace.
-|
-| The config is normalised at runtime by ConfigNormalizer, which validates
-| every value and provides actionable error messages when something is
-| misconfigured.
-|
-*/
-
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Topology Mode
-    |--------------------------------------------------------------------------
-    |
-    | Controls how the driver interacts with broker topology on startup.
-    |
-    | - declare: Create exchanges, queues, and bindings if they don't exist.
-    |           Use this in development or when the application owns its
-    |           topology. DDL is idempotent and matches the config below.
-    |
-    | - verify:  Check that the declared topology exists but never create.
-    |           The driver fails fast if a queue or exchange is missing.
-    |           Use this in production where an ops team manages topology.
-    |
-    | - external: Don't touch topology at all. The broker is expected to be
-    |           fully configured externally. The driver only publishes and
-    |           consumes.
-    |
-    */
-
-    'topology_mode' => env('RABBIT_RS_TOPOLOGY_MODE', 'declare'),
 
     /*
     |--------------------------------------------------------------------------
     | Brokers
     |--------------------------------------------------------------------------
-    |
-    | Each broker entry describes a connection pool. A vhost owns a distinct
-    | AMQP connection — publisher channels are pooled, consumer channels are
-    | dedicated. You can define multiple brokers to connect to different
-    | vhosts or clusters simultaneously.
-    |
-    | hosts:       Comma-separated list of host:port endpoints. The pool
-    |              connects to the first available and fails over on recovery.
-    |              IPv6 addresses must be bracketed: [::1]:5672
-    |
-    | vhost:       AMQP virtual host. Each unique vhost gets its own
-    |              connection within the pool.
-    |
-    | credentials: Plain username/password. Never logged or exposed in Debug.
-    |
-    | tls:         TLS settings. Set enabled=true for amqps://. The ca_cert
-    |              is required when verify=peer. client_cert and client_key
-    |              enable mTLS. server_name sets the SNI expectation.
-    |
-    | heartbeat:   AMQP heartbeat in seconds. If no data is exchanged for
-    |              2× this interval, the connection is considered dead and
-    |              recovery kicks in. Keep below your TCP keepalive threshold.
-    |
+    | Each broker is a named connection pool. A vhost owns a distinct AMQP
+    | connection. 6 brokers: 2 setups × 3 vhosts.
     */
-
     'brokers' => [
-        'default' => [
-            'hosts' => env('RABBIT_RS_HOSTS', '127.0.0.1:5672'),
-            'vhost' => env('RABBIT_RS_VHOST', '/'),
+        // === Simple Setup ===
+        'simple.default' => [
+            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
+            'vhost' => '/default',
             'credentials' => [
-                'username' => env('RABBIT_RS_USERNAME', 'guest'),
-                'password' => env('RABBIT_RS_PASSWORD', 'guest'),
+                'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
+                'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
             ],
-            'tls' => [
-                'enabled' => (bool) env('RABBIT_RS_TLS', false),
-                'server_name' => env('RABBIT_RS_TLS_SERVER_NAME'),
-                'ca_cert' => env('RABBIT_RS_TLS_CA_CERT'),
-                'client_cert' => env('RABBIT_RS_TLS_CLIENT_CERT'),
-                'client_key' => env('RABBIT_RS_TLS_CLIENT_KEY'),
-                'verify' => env('RABBIT_RS_TLS_VERIFY', 'peer'),
+            'heartbeat' => (int) env('RABBIT_RS_HEARTBEAT', 30),
+        ],
+        'simple.orders' => [
+            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
+            'vhost' => '/orders',
+            'credentials' => [
+                'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
+                'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
+            ],
+            'heartbeat' => (int) env('RABBIT_RS_HEARTBEAT', 30),
+        ],
+        'simple.notifications' => [
+            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
+            'vhost' => '/notifications',
+            'credentials' => [
+                'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
+                'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
+            ],
+            'heartbeat' => (int) env('RABBIT_RS_HEARTBEAT', 30),
+        ],
+        // === Cluster Setup ===
+        'cluster.default' => [
+            'hosts' => env('RABBIT_RS_CLUSTER_HOSTS', 'rabbitmq-1:5672,rabbitmq-2:5672,rabbitmq-3:5672'),
+            'vhost' => '/default',
+            'credentials' => [
+                'username' => env('RABBIT_RS_CLUSTER_USER', 'guest'),
+                'password' => env('RABBIT_RS_CLUSTER_PASS', 'guest'),
+            ],
+            'heartbeat' => (int) env('RABBIT_RS_HEARTBEAT', 30),
+        ],
+        'cluster.orders' => [
+            'hosts' => env('RABBIT_RS_CLUSTER_HOSTS', 'rabbitmq-1:5672,rabbitmq-2:5672,rabbitmq-3:5672'),
+            'vhost' => '/orders',
+            'credentials' => [
+                'username' => env('RABBIT_RS_CLUSTER_USER', 'guest'),
+                'password' => env('RABBIT_RS_CLUSTER_PASS', 'guest'),
+            ],
+            'heartbeat' => (int) env('RABBIT_RS_HEARTBEAT', 30),
+        ],
+        'cluster.notifications' => [
+            'hosts' => env('RABBIT_RS_CLUSTER_HOSTS', 'rabbitmq-1:5672,rabbitmq-2:5672,rabbitmq-3:5672'),
+            'vhost' => '/notifications',
+            'credentials' => [
+                'username' => env('RABBIT_RS_CLUSTER_USER', 'guest'),
+                'password' => env('RABBIT_RS_CLUSTER_PASS', 'guest'),
             ],
             'heartbeat' => (int) env('RABBIT_RS_HEARTBEAT', 30),
         ],
@@ -96,118 +70,274 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Routes
-    |--------------------------------------------------------------------------
-    |
-    | Routes map Laravel queue names to AMQP exchanges and routing keys.
-    | When you dispatch a job to a queue, the driver looks up the route by
-    | queue name to determine which exchange to publish to.
-    |
-    | broker:      Must reference a broker defined above.
-    |
-    | exchange:    The AMQP exchange to publish to. Set to null for the
-    |              default exchange (direct routing to queue name).
-    |
-    | routing_key: The routing key pattern. The placeholder {queue} is
-    |              replaced with the actual queue name at publish time.
-    |              For example, "{queue}" routes each job to its own queue
-    |              name. Use a fixed string for topic-based routing.
-    |
+    | Routes — map Laravel queue names to broker + exchange + routing key.
+    | Route name = Laravel queue name = AMQP queue name (via {queue} placeholder).
     */
-
     'routes' => [
-        'default' => [
-            'broker' => 'default',
-            'exchange' => env('RABBIT_RS_EXCHANGE', 'laravel.jobs'),
+        // Simple — /default vhost
+        'simple.default.default' => [
+            'broker' => 'simple.default',
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+        ],
+        'simple.default.high-priority' => [
+            'broker' => 'simple.default',
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+        ],
+        // Simple — /orders vhost
+        'simple.orders.created' => [
+            'broker' => 'simple.orders',
+            'exchange' => 'laravel.orders',
+            'routing_key' => '{queue}',
+        ],
+        'simple.orders.paid' => [
+            'broker' => 'simple.orders',
+            'exchange' => 'laravel.orders',
+            'routing_key' => '{queue}',
+        ],
+        'simple.orders.shipped' => [
+            'broker' => 'simple.orders',
+            'exchange' => 'laravel.orders',
+            'routing_key' => '{queue}',
+        ],
+        // Simple — /notifications vhost
+        'simple.notifications.email' => [
+            'broker' => 'simple.notifications',
+            'exchange' => 'laravel.notifications',
+            'routing_key' => '{queue}',
+        ],
+        'simple.notifications.sms' => [
+            'broker' => 'simple.notifications',
+            'exchange' => 'laravel.notifications',
+            'routing_key' => '{queue}',
+        ],
+        'simple.notifications.push' => [
+            'broker' => 'simple.notifications',
+            'exchange' => 'laravel.notifications',
+            'routing_key' => '{queue}',
+        ],
+        // Cluster — /default vhost
+        'cluster.default.default' => [
+            'broker' => 'cluster.default',
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+        ],
+        'cluster.default.high-priority' => [
+            'broker' => 'cluster.default',
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+        ],
+        // Cluster — /orders vhost
+        'cluster.orders.created' => [
+            'broker' => 'cluster.orders',
+            'exchange' => 'laravel.orders',
+            'routing_key' => '{queue}',
+        ],
+        'cluster.orders.paid' => [
+            'broker' => 'cluster.orders',
+            'exchange' => 'laravel.orders',
+            'routing_key' => '{queue}',
+        ],
+        'cluster.orders.shipped' => [
+            'broker' => 'cluster.orders',
+            'exchange' => 'laravel.orders',
+            'routing_key' => '{queue}',
+        ],
+        // Cluster — /notifications vhost
+        'cluster.notifications.email' => [
+            'broker' => 'cluster.notifications',
+            'exchange' => 'laravel.notifications',
+            'routing_key' => '{queue}',
+        ],
+        'cluster.notifications.sms' => [
+            'broker' => 'cluster.notifications',
+            'exchange' => 'laravel.notifications',
+            'routing_key' => '{queue}',
+        ],
+        'cluster.notifications.push' => [
+            'broker' => 'cluster.notifications',
+            'exchange' => 'laravel.notifications',
             'routing_key' => '{queue}',
         ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Best-Effort Mode
-    |--------------------------------------------------------------------------
-    |
-    | When true, the driver allows subscriptions to use early_ack, which
-    | acknowledges deliveries to the broker before PHP processes them. This
-    | improves throughput at the cost of at-least-once: if the PHP process
-    | crashes, in-flight messages are lost.
-    |
-    | When false (default), early_ack is rejected at config validation time.
-    | This preserves the at-least-once delivery contract.
-    |
+    | Workers — 6 profiles, one per vhost per setup.
+    | Subscription queue values match route names exactly.
     */
-
-    'best_effort' => (bool) env('RABBIT_RS_BEST_EFFORT', false),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Workers
-    |--------------------------------------------------------------------------
-    |
-    | Each worker profile defines a set of subscriptions consumed by a
-    | single `rabbit-rs:work` process. The native scheduler multiplexes
-    | subscriptions on a dedicated channel per consumer.
-    |
-    | scheduler.strategy:     Currently only "weighted_fair" is supported.
-    |                         The scheduler distributes consumer credit
-    |                         across subscriptions proportional to weight.
-    |
-    | scheduler.max_in_flight: Hard cap on unacknowledged messages per worker.
-    |                         Must be ≥ every subscription's prefetch value.
-    |                         When exceeded, BackpressureDetected fires and the
-    |                         scheduler pauses new deliveries.
-    |
-    | subscriptions:          Each subscription binds the worker to a queue on
-    |                         a broker. A worker can subscribe to multiple
-    |                         queues with different weights and priorities.
-    |
-    |   enabled:            Set to false to skip this subscription without
-    |                       removing it from config.
-    |
-    |   broker:              Must reference a broker defined above.
-    |
-    |   queue:               The AMQP queue to consume from.
-    |
-    |   weight:              Relative weight in the weighted-fair scheduler.
-    |                       Higher weight gets more consumer credit.
-    |
-    |   priority_class:      Integer priority class (-32768 to 32767).
-    |                       Lower numbers are higher priority on quorum
-    |                       queues. The scheduler groups subscriptions by
-    |                       class and serves the highest priority first.
-    |
-    |   prefetch.mode:       Currently only "fixed" is supported.
-    |   prefetch.value:      QoS prefetch count. The broker delivers at most
-    |                       this many unacked messages per consumer channel.
-    |
-    |   starvation_after:    Seconds without a delivery before the scheduler
-    |                       boosts this subscription's weight to prevent
-    |                       starvation by heavier-weight subscriptions.
-    |
-    |   early_ack:           When true, deliveries are auto-acked before
-    |                       dispatch to PHP. Requires best_effort=true.
-    |                       If PHP crashes, in-flight messages are lost.
-    |
-    */
-
     'workers' => [
-        'default' => [
-            'scheduler' => [
-                'strategy' => 'weighted_fair',
-                'max_in_flight' => (int) env('RABBIT_RS_MAX_IN_FLIGHT', 256),
-            ],
+        'simple.default' => [
+            'scheduler' => ['strategy' => 'weighted_fair', 'max_in_flight' => 64],
             'subscriptions' => [
                 'default' => [
                     'enabled' => true,
-                    'broker' => 'default',
-                    'queue' => env('RABBIT_RS_QUEUE', 'default'),
+                    'broker' => 'simple.default',
+                    'queue' => 'simple.default.default',
                     'weight' => 1,
                     'priority_class' => 0,
-                    'prefetch' => [
-                        'mode' => 'fixed',
-                        'value' => (int) env('RABBIT_RS_PREFETCH', 64),
-                    ],
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+                'high-priority' => [
+                    'enabled' => true,
+                    'broker' => 'simple.default',
+                    'queue' => 'simple.default.high-priority',
+                    'weight' => 4,
+                    'priority_class' => -1,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 15,
+                ],
+            ],
+        ],
+        'simple.orders' => [
+            'scheduler' => ['strategy' => 'weighted_fair', 'max_in_flight' => 64],
+            'subscriptions' => [
+                'created' => [
+                    'enabled' => true,
+                    'broker' => 'simple.orders',
+                    'queue' => 'simple.orders.created',
+                    'weight' => 2,
+                    'priority_class' => -1,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+                'paid' => [
+                    'enabled' => true,
+                    'broker' => 'simple.orders',
+                    'queue' => 'simple.orders.paid',
+                    'weight' => 2,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+                'shipped' => [
+                    'enabled' => true,
+                    'broker' => 'simple.orders',
+                    'queue' => 'simple.orders.shipped',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+            ],
+        ],
+        'simple.notifications' => [
+            'scheduler' => ['strategy' => 'weighted_fair', 'max_in_flight' => 64],
+            'subscriptions' => [
+                'email' => [
+                    'enabled' => true,
+                    'broker' => 'simple.notifications',
+                    'queue' => 'simple.notifications.email',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+                'sms' => [
+                    'enabled' => true,
+                    'broker' => 'simple.notifications',
+                    'queue' => 'simple.notifications.sms',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+                'push' => [
+                    'enabled' => true,
+                    'broker' => 'simple.notifications',
+                    'queue' => 'simple.notifications.push',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 16],
+                    'starvation_after' => 30,
+                ],
+            ],
+        ],
+        'cluster.default' => [
+            'scheduler' => ['strategy' => 'weighted_fair', 'max_in_flight' => 128],
+            'subscriptions' => [
+                'default' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.default',
+                    'queue' => 'cluster.default.default',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 30,
+                ],
+                'high-priority' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.default',
+                    'queue' => 'cluster.default.high-priority',
+                    'weight' => 4,
+                    'priority_class' => -1,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 15,
+                ],
+            ],
+        ],
+        'cluster.orders' => [
+            'scheduler' => ['strategy' => 'weighted_fair', 'max_in_flight' => 128],
+            'subscriptions' => [
+                'created' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.orders',
+                    'queue' => 'cluster.orders.created',
+                    'weight' => 2,
+                    'priority_class' => -1,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 30,
+                ],
+                'paid' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.orders',
+                    'queue' => 'cluster.orders.paid',
+                    'weight' => 2,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 30,
+                ],
+                'shipped' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.orders',
+                    'queue' => 'cluster.orders.shipped',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 30,
+                ],
+            ],
+        ],
+        'cluster.notifications' => [
+            'scheduler' => ['strategy' => 'weighted_fair', 'max_in_flight' => 128],
+            'subscriptions' => [
+                'email' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.notifications',
+                    'queue' => 'cluster.notifications.email',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 30,
+                ],
+                'sms' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.notifications',
+                    'queue' => 'cluster.notifications.sms',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
+                    'starvation_after' => 30,
+                ],
+                'push' => [
+                    'enabled' => true,
+                    'broker' => 'cluster.notifications',
+                    'queue' => 'cluster.notifications.push',
+                    'weight' => 1,
+                    'priority_class' => 0,
+                    'prefetch' => ['mode' => 'fixed', 'value' => 32],
                     'starvation_after' => 30,
                 ],
             ],
@@ -216,27 +346,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Publisher
-    |--------------------------------------------------------------------------
-    |
-    | Controls how publishes are confirmed by the broker.
-    |
-    | confirms:        When true, every publish is tracked until the broker
-    |                  ACKs or returns it. Unconfirmed publishes survive
-    |                  connection recovery in bounded process memory and are
-    |                  replayed with the same message_id and original deadline.
-    |
-    | mandatory:       When true, the broker returns messages that cannot be
-    |                  routed (no queue matches the routing key). A return
-    |                  takes precedence over a following ACK.
-    |
-    | confirm_timeout: Milliseconds to wait for a confirm before treating the
-    |                  publish as failed. Must be a positive integer. A timeout
-    |                  resolves the waiter once — it does not mean the message
-    |                  was lost, only that confirmation didn't arrive in time.
-    |
+    | Topology — quorum queues, durable, with dead-letter exchange.
     */
+    'topology' => [
+        'queue' => [
+            'type' => 'quorum',
+            'durable' => true,
+            'delivery_limit' => 20,
+        ],
+        'dead_letter' => [
+            'exchange' => 'dead-letters',
+            'queue' => 'failed-jobs',
+            'routing_key' => null,
+        ],
+    ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Topology Mode
+    */
+    'topology_mode' => env('RABBIT_RS_TOPOLOGY_MODE', 'declare'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Publisher — confirms + mandatory routing.
+    */
     'publisher' => [
         'confirms' => true,
         'mandatory' => true,
@@ -245,39 +379,8 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Delayed Messages
-    |--------------------------------------------------------------------------
-    |
-    | Controls how delayed jobs (Job::dispatch()->delay(...)) are handled.
-    |
-    | mode:   "auto" — Detect whether the rabbitmq_delayed_message_exchange
-    |                plugin is installed. If yes, use the plugin (native
-    |                delayed exchange). If no, fall back to TTL bucketed
-    |                queues.
-    |
-    |        "plugin" — Always use the delayed exchange plugin. Fails if the
-    |                plugin is not installed.
-    |
-    |        "ttl" — Always use bucketed TTL queues. Creates one queue per
-    |                bucket with a per-message TTL and dead-letter to the
-    |                target queue.
-    |
-    | buckets:            Delay thresholds in seconds for TTL bucketing.
-    |                     Messages are placed in the bucket whose TTL is the
-    |                     smallest value ≥ the requested delay.
-    |
-    | max_buckets:        Maximum number of bucket queues to create. If the
-    |                     bucket list exceeds this, config validation fails.
-    |
-    | queue_expiry_margin: Seconds of extra TTL added to bucket queues so
-    |                     they survive brief broker restarts without expiring
-    |                     mid-delay.
-    |
-    | detection_timeout:  Seconds to wait for the plugin detection probe
-    |                     before falling back to TTL mode in "auto".
-    |
+    | Delay — auto-detect plugin, fall back to TTL buckets.
     */
-
     'delay' => [
         'mode' => env('RABBIT_RS_DELAY_MODE', 'auto'),
         'buckets' => array_map('intval', array_filter(array_map('trim', explode(',', env('RABBIT_RS_DELAY_BUCKETS', '1,5,30,120'))))),
@@ -288,45 +391,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Topology
-    |--------------------------------------------------------------------------
-    |
-    | Defines the queue and dead-letter topology the driver declares when
-    | topology_mode is "declare".
-    |
-    | queue.type:           "quorum" (default) — replicated, Raft-based queues
-    |                       with delivery limits. Recommended for production.
-    |                       "classic" — single-node durable queues.
-    |
-    | queue.durable:        Whether the queue survives broker restart.
-    |
-    | queue.delivery_limit: Max redelivery count on quorum queues. After this
-    |                       many delivery attempts, the message is dead-lettered
-    |                       (if dead_letter is configured) or dropped.
-    |
-    |                       dead_letter MUST be configured when delivery_limit is
-    |                       set. Without a DLX, poison messages are silently
-    |                       dropped after the limit is reached — violating the
-    |                       at-least-once delivery contract. Set to null to
-    |                       disable the delivery limit entirely.
-    |
-    | dead_letter:          Optional dead-letter exchange + queue config. When
-    |                       set, messages that exceed delivery_limit are routed
-    |                       here instead of being silently dropped.
-    |
-    |   exchange:    The dead-letter exchange to publish to.
-    |   queue:       The dead-letter queue to bind.
-    |   routing_key: Optional routing key override. If null, the original
-    |                message's routing key is used.
-    |
+    | TLS
     */
-
-    'topology' => [
-        'queue' => [
-            'type' => 'quorum',
-            'durable' => true,
-            'delivery_limit' => null,
-        ],
-        'dead_letter' => null,
+    'tls' => [
+        'enabled' => (bool) env('RABBIT_RS_TLS', false),
+        'server_name' => env('RABBIT_RS_TLS_SERVER_NAME'),
+        'ca_cert' => env('RABBIT_RS_TLS_CA_CERT'),
+        'client_cert' => env('RABBIT_RS_TLS_CLIENT_CERT'),
+        'client_key' => env('RABBIT_RS_TLS_CLIENT_KEY'),
+        'verify' => env('RABBIT_RS_TLS_VERIFY', 'peer'),
     ],
 ];
