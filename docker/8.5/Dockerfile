@@ -89,8 +89,16 @@ fi
 RUN curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o /usr/local/bin/pie \
     && chmod +x /usr/local/bin/pie
 
-# Install the Rabbit RS native extension
-RUN pie install goopil/rabbit-rs-native
+# Install the Rabbit RS native extension (manual binary download — PIE asset naming mismatch workaround)
+RUN ARCH=$(dpkg --print-architecture) \
+    && RABBIT_RS_VERSION=0.0.4 \
+    && ASSET_NAME="php_rabbit_rs-${RABBIT_RS_VERSION}_php8.5-${ARCH}-linux-glibc.zip" \
+    && curl -L "https://github.com/Goopil/php-rabbit-rs/releases/download/v${RABBIT_RS_VERSION}/${ASSET_NAME}" -o "/tmp/${ASSET_NAME}" \
+    && unzip -o "/tmp/${ASSET_NAME}" -d /tmp/rabbit_rs \
+    && EXT_DIR=$(php -i | grep '^extension_dir' | sed 's/.*=> //') \
+    && cp /tmp/rabbit_rs/rabbit_rs.so "${EXT_DIR}/rabbit_rs.so" \
+    && echo "extension=rabbit_rs" > /etc/php/8.5/cli/conf.d/99-rabbit-rs.ini \
+    && rm -rf /tmp/rabbit_rs "/tmp/${ASSET_NAME}"
 
 # Verify the extension is loaded
 RUN php --ri rabbit_rs
