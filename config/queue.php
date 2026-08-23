@@ -89,6 +89,11 @@ return [
             ],
         ],
 
+        'rabbit-rs' => [
+            'driver' => 'rabbit-rs',
+            'queue' => env('RABBIT_RS_QUEUE', 'simple.default.default'),
+        ],
+
     ],
 
     /*
