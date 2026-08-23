@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "27d9349fbab17d735b2e261aad7f1c27",
+    "content-hash": "0b31278ba3bfd833d123c5d324133ac0",
     "packages": [
         {
             "name": "brick/math",
@@ -577,6 +577,51 @@
                 }
             ],
             "time": "2025-12-03T09:33:47+00:00"
+        },
+        {
+            "name": "goopil/rabbit-rs-laravel",
+            "version": "v0.0.4",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:Goopil/rabbit-rs-laravel.git",
+                "reference": "7ad3dfce504ec55a271cdd8d79a88ab2c49c3362"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/7ad3dfce504ec55a271cdd8d79a88ab2c49c3362",
+                "reference": "7ad3dfce504ec55a271cdd8d79a88ab2c49c3362",
+                "shasum": ""
+            },
+            "require": {
+                "ext-rabbit_rs": "^0.0",
+                "illuminate/queue": "^12.0 || ^13.0",
+                "illuminate/support": "^12.0 || ^13.0",
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.0 || ^11.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Goopil\\RabbitRs\\Laravel\\RabbitMqServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Goopil\\RabbitRs\\Laravel\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Laravel queue driver for the Rabbit RS native extension",
+            "time": "2026-08-23T12:42:24+00:00"
         },
         {
             "name": "graham-campbell/result-type",
