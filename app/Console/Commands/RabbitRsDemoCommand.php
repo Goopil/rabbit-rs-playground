@@ -17,6 +17,7 @@ class RabbitRsDemoCommand extends Command
     protected $signature = 'rabbit-rs:demo
                             {--setup=both : Setup to use (simple, cluster, or both)}
                             {--mode=single : Mode to use (single, combined, or both)}
+                            {--count=1 : Number of iterations (8 jobs per iteration per setup)}
                             {--delay : Dispatch some jobs with delays}';
 
     protected $description = 'Dispatch demo jobs to RabbitMQ across all vhosts and queues';
@@ -31,6 +32,7 @@ class RabbitRsDemoCommand extends Command
     {
         $setup = $this->option('setup');
         $mode = $this->option('mode');
+        $count = (int) $this->option('count');
         $useDelay = $this->option('delay');
 
         if (! in_array($setup, ['simple', 'cluster', 'both'])) {
@@ -45,40 +47,52 @@ class RabbitRsDemoCommand extends Command
             return 1;
         }
 
+        if ($count < 1) {
+            $this->error("Invalid count: {$count}. Must be >= 1");
+
+            return 1;
+        }
+
         $setups = $setup === 'both' ? ['simple', 'cluster'] : [$setup];
         $modes = $mode === 'both' ? ['single', 'combined'] : [$mode];
         $dispatched = 0;
+        $totalExpected = $count * 8 * count($setups) * count($modes);
 
-        foreach ($setups as $s) {
-            foreach ($modes as $m) {
-                $this->info("Dispatching to {$s} setup (mode: {$m})...");
+        $this->info("Dispatching {$totalExpected} jobs ({$count} iterations × 8 queues × ".count($setups).' setup(s) × '.count($modes).' mode(s))...');
+        $this->newLine();
 
-                foreach (self::VHOST_QUEUES as $vhost => $queues) {
-                    foreach ($queues as $queue) {
-                        $queueName = $m === 'single'
-                            ? "{$s}.{$vhost}.{$queue}"
-                            : "{$s}.all.{$this->combinedQueueName($vhost, $queue)}";
+        $progressBar = $this->output->createProgressBar($totalExpected);
+        $progressBar->start();
 
-                        $job = $this->dispatchJob($vhost, $queue, $dispatched + 1, $s, $m);
+        for ($iter = 0; $iter < $count; $iter++) {
+            foreach ($setups as $s) {
+                foreach ($modes as $m) {
+                    foreach (self::VHOST_QUEUES as $vhost => $queues) {
+                        foreach ($queues as $queue) {
+                            $queueName = $m === 'single'
+                                ? "{$s}.{$vhost}.{$queue}"
+                                : "{$s}.all.{$this->combinedQueueName($vhost, $queue)}";
 
-                        $delay = '';
-                        if ($useDelay && $queue === 'paid') {
-                            $job->delay(now()->addSeconds(5));
-                            $delay = ' (delayed 5s)';
-                        } elseif ($useDelay && $queue === 'sms') {
-                            $job->delay(now()->addSeconds(10));
-                            $delay = ' (delayed 10s)';
+                            $job = $this->dispatchJob($vhost, $queue, $dispatched + 1, $s, $m);
+
+                            if ($useDelay && $queue === 'paid') {
+                                $job->delay(now()->addSeconds(5));
+                            } elseif ($useDelay && $queue === 'sms') {
+                                $job->delay(now()->addSeconds(10));
+                            }
+
+                            $job->onQueue($queueName);
+                            $dispatched++;
+                            $progressBar->advance();
                         }
-
-                        $job->onQueue($queueName);
-                        $dispatched++;
-                        $this->line("  ✓ {$this->jobLabel($vhost, $queue)} → {$queueName}{$delay}");
                     }
                 }
             }
         }
 
-        $this->newLine();
+        $progressBar->finish();
+        $this->newLine(2);
+
         $this->info("Dispatched {$dispatched} jobs to ".implode(', ', $setups).' setup(s), mode: '.implode(', ', $modes).'.');
         $this->info('Workers are managed by supervisord. Check with: make workers-status');
 
@@ -90,32 +104,16 @@ class RabbitRsDemoCommand extends Command
         $label = "{$setup} ({$mode})";
 
         return match ($vhost.'.'.$queue) {
-            'default.default' => ProcessDefaultJob::dispatch(['id' => $id, 'message' => "Default job on {$label}"]),
-            'default.high-priority' => ProcessHighPriorityJob::dispatch(['id' => $id, 'message' => "High priority on {$label}"]),
+            'default.default' => ProcessDefaultJob::dispatch(['id' => $id, 'message' => "Default job #{$id} on {$label}"]),
+            'default.high-priority' => ProcessHighPriorityJob::dispatch(['id' => $id, 'message' => "High priority #{$id} on {$label}"]),
             'orders.created' => ProcessOrderCreated::dispatch(['order_id' => $id, 'customer' => 'John Doe', 'total' => 99.99]),
             'orders.paid' => ProcessOrderPaid::dispatch(['order_id' => $id, 'payment_method' => 'credit_card', 'amount' => 99.99]),
             'orders.shipped' => ProcessOrderShipped::dispatch(['order_id' => $id, 'tracking_number' => 'TRK'.rand(100000, 999999), 'carrier' => 'UPS']),
-            'notifications.email' => SendEmailNotification::dispatch(['recipient' => 'user@example.com', 'subject' => "Welcome from {$label}"]),
+            'notifications.email' => SendEmailNotification::dispatch(['recipient' => 'user@example.com', 'subject' => "Welcome #{$id} from {$label}"]),
             'notifications.sms' => SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)]),
-            'notifications.push' => SendPushNotification::dispatch(['device_token' => 'token_'.bin2hex(random_bytes(8)), 'title' => "Push from {$label}", 'body' => 'Hello!']),
-            default => ProcessDefaultJob::dispatch(['id' => $id, 'message' => "Unknown job on {$label}"]),
+            'notifications.push' => SendPushNotification::dispatch(['device_token' => 'token_'.bin2hex(random_bytes(8)), 'title' => "Push #{$id} from {$label}", 'body' => 'Hello!']),
+            default => ProcessDefaultJob::dispatch(['id' => $id, 'message' => "Unknown job #{$id} on {$label}"]),
         };
-    }
-
-    private function jobLabel(string $vhost, string $queue): string
-    {
-        $labels = [
-            'default.default' => 'ProcessDefaultJob',
-            'default.high-priority' => 'ProcessHighPriorityJob',
-            'orders.created' => 'ProcessOrderCreated',
-            'orders.paid' => 'ProcessOrderPaid',
-            'orders.shipped' => 'ProcessOrderShipped',
-            'notifications.email' => 'SendEmailNotification',
-            'notifications.sms' => 'SendSmsNotification',
-            'notifications.push' => 'SendPushNotification',
-        ];
-
-        return $labels[$vhost.'.'.$queue] ?? 'UnknownJob';
     }
 
     private function combinedQueueName(string $vhost, string $queue): string
