@@ -85,6 +85,16 @@ RUN if [ -n "$PHP_EXTENSIONS" ]; then \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
 fi
 
+# Install PIE (PHP Installer for Extensions)
+RUN curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o /usr/local/bin/pie \
+    && chmod +x /usr/local/bin/pie
+
+# Install the Rabbit RS native extension
+RUN pie install goopil/rabbit-rs-native
+
+# Verify the extension is loaded
+RUN php --ri rabbit_rs
+
 RUN setcap "cap_net_bind_service=+ep" /usr/bin/php8.5
 
 RUN userdel -r ubuntu
