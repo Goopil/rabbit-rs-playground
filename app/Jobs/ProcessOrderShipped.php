@@ -26,7 +26,7 @@ class ProcessOrderShipped implements ShouldQueue
             'carrier' => $this->payload['carrier'] ?? null,
         ]);
 
-        sleep(1);
+        usleep(100000);
 
         Log::info('Order shipped processed', [
             'order_id' => $this->payload['order_id'] ?? null,

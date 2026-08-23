@@ -26,7 +26,7 @@ class ProcessOrderPaid implements ShouldQueue
             'amount' => $this->payload['amount'] ?? null,
         ]);
 
-        sleep(1);
+        usleep(100000);
 
         Log::info('Order paid processed', [
             'order_id' => $this->payload['order_id'] ?? null,

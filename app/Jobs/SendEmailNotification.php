@@ -25,7 +25,7 @@ class SendEmailNotification implements ShouldQueue
             'subject' => $this->payload['subject'] ?? null,
         ]);
 
-        sleep(1);
+        usleep(100000);
 
         Log::info('Email sent', [
             'recipient' => $this->payload['recipient'] ?? null,

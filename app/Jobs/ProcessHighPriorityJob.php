@@ -24,7 +24,7 @@ class ProcessHighPriorityJob implements ShouldQueue
             'payload' => $this->payload,
         ]);
 
-        sleep(1);
+        usleep(100000);
 
         Log::info('ProcessHighPriorityJob completed', [
             'id' => $this->payload['id'] ?? null,

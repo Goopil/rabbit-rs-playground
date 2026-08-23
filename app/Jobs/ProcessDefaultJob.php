@@ -24,7 +24,7 @@ class ProcessDefaultJob implements ShouldQueue
             'payload' => $this->payload,
         ]);
 
-        sleep(2);
+        usleep(100000);
 
         Log::info('ProcessDefaultJob completed', [
             'id' => $this->payload['id'] ?? null,

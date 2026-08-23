@@ -26,7 +26,7 @@ class ProcessOrderCreated implements ShouldQueue
             'total' => $this->payload['total'] ?? null,
         ]);
 
-        sleep(1);
+        usleep(100000);
 
         Log::info('Order created processed', [
             'order_id' => $this->payload['order_id'] ?? null,
