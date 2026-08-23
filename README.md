@@ -18,14 +18,14 @@ A Laravel Sail playground for the [php-rabbit-rs](https://github.com/Goopil/php-
 ## Quick Start
 
 ```bash
-# 1. Build the Sail image (installs the rabbit_rs extension via PIE)
+# 1. Build the Sail image (installs the rabbit_rs extension)
 make build
 
 # 2. Start all containers (Laravel + MySQL + 2 RabbitMQ setups)
 make up
 
-# 3. Create RabbitMQ vhosts
-make setup-vhosts
+# 3. Create RabbitMQ vhosts and topology (exchanges, queues, bindings)
+make setup
 
 # 4. Dispatch demo jobs to both setups
 make demo
@@ -72,16 +72,29 @@ sail artisan rabbit-rs:work --queue=cluster.notifications
 ## Configuration
 
 - `config/rabbit-rs.php` — 6 brokers, 16 routes, 6 worker profiles
-- `docker/8.5/Dockerfile` — PIE + rabbit-rs-native extension
-- `docker-compose.yml` — 4 RabbitMQ services (1 simple + 3 cluster nodes)
+- `docker/8.5/Dockerfile` — rabbit-rs-native extension (manual binary download from GitHub Releases)
+- `compose.yaml` — 4 RabbitMQ services (1 simple + 3 cluster nodes)
 - `docker/rabbitmq/cluster/` — cluster peer discovery config
+- `.env` — `RABBIT_RS_TOPOLOGY_MODE=external` (topology managed by `rabbit-rs:setup-topology` command)
+
+## Setup Commands
+
+| Command | Description |
+|---------|-------------|
+| `make setup-vhosts` | Create 3 vhosts on both RabbitMQ setups |
+| `make setup-topology` | Create exchanges, queues, bindings, and dead-letter topology |
+| `make setup` | Run both setup-vhosts and setup-topology |
+| `make demo` | Dispatch 16 demo jobs across both setups |
+| `make demo --delay` | Dispatch with some delayed jobs |
+| `make status` | Show rabbit-rs pool status and metrics |
 
 ## Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
 | Extension not loaded | Rebuild: `make build` then `make up` |
-| Cluster not forming | Check `docker logs rabbitmq-1`; ensure all 3 nodes share the Erlang cookie |
+| Cluster not forming | Destroy volumes: `sail down -v && sail up -d` (clears stale Erlang cookies) |
+| Publish fails (unroutable) | Run `make setup-topology` to create exchanges and bindings |
 | Composer rejects rabbit-rs-laravel | Must run inside Sail: `sail composer require ...` (extension is in the container, not on macOS) |
-| Vhost creation fails | Ensure RabbitMQ is healthy: `docker compose ps`, then re-run `make setup-vhosts` |
-| `rabbitmq:4.3-management` not found | Use `rabbitmq:4-management` in docker-compose.yml as fallback |
+| Vhost creation fails | Ensure RabbitMQ is healthy: `docker compose ps`, then re-run `make setup` |
+| `rabbitmq:4.3-management` not found | Use `rabbitmq:4-management` in compose.yaml as fallback |
