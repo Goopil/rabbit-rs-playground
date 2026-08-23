@@ -26,7 +26,7 @@ class SendPushNotification implements ShouldQueue
             'body' => $this->payload['body'] ?? null,
         ]);
 
-        usleep(100000);
+        
 
         Log::info('Push sent', [
             'device_token' => $this->payload['device_token'] ?? null,

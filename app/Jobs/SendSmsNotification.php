@@ -25,7 +25,7 @@ class SendSmsNotification implements ShouldQueue
             'message' => $this->payload['message'] ?? null,
         ]);
 
-        usleep(100000);
+        
 
         Log::info('SMS sent', [
             'phone' => $this->payload['phone'] ?? null,
