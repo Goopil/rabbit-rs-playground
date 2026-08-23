@@ -21,6 +21,12 @@ class RabbitRsDemoCommand extends Command
 
     protected $description = 'Dispatch demo jobs to RabbitMQ across all vhosts and queues';
 
+    private const VHOST_QUEUES = [
+        'default' => ['default', 'high-priority'],
+        'orders' => ['created', 'paid', 'shipped'],
+        'notifications' => ['email', 'sms', 'push'],
+    ];
+
     public function handle(): int
     {
         $setup = $this->option('setup');
@@ -45,72 +51,79 @@ class RabbitRsDemoCommand extends Command
 
         foreach ($setups as $s) {
             foreach ($modes as $m) {
-                $prefix = $m === 'single' ? $s : "{$s}.all";
                 $this->info("Dispatching to {$s} setup (mode: {$m})...");
 
-                // /default vhost
-                ProcessDefaultJob::dispatch(['id' => $dispatched + 1, 'message' => "Default job on {$s} ({$m})"])
-                    ->onQueue("{$prefix}.default");
-                $dispatched++;
-                $this->line("  ✓ ProcessDefaultJob → {$prefix}.default");
+                foreach (self::VHOST_QUEUES as $vhost => $queues) {
+                    foreach ($queues as $queue) {
+                        $queueName = $m === 'single'
+                            ? "{$s}.{$vhost}.{$queue}"
+                            : "{$s}.all.{$this->combinedQueueName($vhost, $queue)}";
 
-                ProcessHighPriorityJob::dispatch(['id' => $dispatched + 1, 'message' => "High priority on {$s} ({$m})"])
-                    ->onQueue("{$prefix}.high-priority");
-                $dispatched++;
-                $this->line("  ✓ ProcessHighPriorityJob → {$prefix}.high-priority");
+                        $job = $this->dispatchJob($vhost, $queue, $dispatched + 1, $s, $m);
 
-                // /orders vhost
-                ProcessOrderCreated::dispatch(['order_id' => $dispatched + 1, 'customer' => 'John Doe', 'total' => 99.99])
-                    ->onQueue("{$prefix}.orders.created");
-                $dispatched++;
-                $this->line("  ✓ ProcessOrderCreated → {$prefix}.orders.created");
+                        $delay = '';
+                        if ($useDelay && $queue === 'paid') {
+                            $job->delay(now()->addSeconds(5));
+                            $delay = ' (delayed 5s)';
+                        } elseif ($useDelay && $queue === 'sms') {
+                            $job->delay(now()->addSeconds(10));
+                            $delay = ' (delayed 10s)';
+                        }
 
-                if ($useDelay) {
-                    ProcessOrderPaid::dispatch(['order_id' => $dispatched + 1, 'payment_method' => 'credit_card', 'amount' => 99.99])
-                        ->onQueue("{$prefix}.orders.paid")
-                        ->delay(now()->addSeconds(5));
-                    $this->line("  ✓ ProcessOrderPaid → {$prefix}.orders.paid (delayed 5s)");
-                } else {
-                    ProcessOrderPaid::dispatch(['order_id' => $dispatched + 1, 'payment_method' => 'credit_card', 'amount' => 99.99])
-                        ->onQueue("{$prefix}.orders.paid");
-                    $this->line("  ✓ ProcessOrderPaid → {$prefix}.orders.paid");
+                        $job->onQueue($queueName);
+                        $dispatched++;
+                        $this->line("  ✓ {$this->jobLabel($vhost, $queue)} → {$queueName}{$delay}");
+                    }
                 }
-                $dispatched++;
-
-                ProcessOrderShipped::dispatch(['order_id' => $dispatched + 1, 'tracking_number' => 'TRK'.rand(100000, 999999), 'carrier' => 'UPS'])
-                    ->onQueue("{$prefix}.orders.shipped");
-                $dispatched++;
-                $this->line("  ✓ ProcessOrderShipped → {$prefix}.orders.shipped");
-
-                // /notifications vhost
-                SendEmailNotification::dispatch(['recipient' => 'user@example.com', 'subject' => "Welcome from {$s} ({$m})"])
-                    ->onQueue("{$prefix}.notifications.email");
-                $dispatched++;
-                $this->line("  ✓ SendEmailNotification → {$prefix}.notifications.email");
-
-                if ($useDelay) {
-                    SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)])
-                        ->onQueue("{$prefix}.notifications.sms")
-                        ->delay(now()->addSeconds(10));
-                    $this->line("  ✓ SendSmsNotification → {$prefix}.notifications.sms (delayed 10s)");
-                } else {
-                    SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)])
-                        ->onQueue("{$prefix}.notifications.sms");
-                    $this->line("  ✓ SendSmsNotification → {$prefix}.notifications.sms");
-                }
-                $dispatched++;
-
-                SendPushNotification::dispatch(['device_token' => 'token_'.bin2hex(random_bytes(8)), 'title' => "Push from {$s} ({$m})", 'body' => 'Hello!'])
-                    ->onQueue("{$prefix}.notifications.push");
-                $dispatched++;
-                $this->line("  ✓ SendPushNotification → {$prefix}.notifications.push");
             }
         }
 
         $this->newLine();
         $this->info("Dispatched {$dispatched} jobs to ".implode(', ', $setups).' setup(s), mode: '.implode(', ', $modes).'.');
-        $this->info('Workers are managed by supervisord. Check with: docker exec <container> supervisorctl status');
+        $this->info('Workers are managed by supervisord. Check with: make workers-status');
 
         return 0;
+    }
+
+    private function dispatchJob(string $vhost, string $queue, int $id, string $setup, string $mode)
+    {
+        $label = "{$setup} ({$mode})";
+
+        return match ($vhost.'.'.$queue) {
+            'default.default' => ProcessDefaultJob::dispatch(['id' => $id, 'message' => "Default job on {$label}"]),
+            'default.high-priority' => ProcessHighPriorityJob::dispatch(['id' => $id, 'message' => "High priority on {$label}"]),
+            'orders.created' => ProcessOrderCreated::dispatch(['order_id' => $id, 'customer' => 'John Doe', 'total' => 99.99]),
+            'orders.paid' => ProcessOrderPaid::dispatch(['order_id' => $id, 'payment_method' => 'credit_card', 'amount' => 99.99]),
+            'orders.shipped' => ProcessOrderShipped::dispatch(['order_id' => $id, 'tracking_number' => 'TRK'.rand(100000, 999999), 'carrier' => 'UPS']),
+            'notifications.email' => SendEmailNotification::dispatch(['recipient' => 'user@example.com', 'subject' => "Welcome from {$label}"]),
+            'notifications.sms' => SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)]),
+            'notifications.push' => SendPushNotification::dispatch(['device_token' => 'token_'.bin2hex(random_bytes(8)), 'title' => "Push from {$label}", 'body' => 'Hello!']),
+            default => ProcessDefaultJob::dispatch(['id' => $id, 'message' => "Unknown job on {$label}"]),
+        };
+    }
+
+    private function jobLabel(string $vhost, string $queue): string
+    {
+        $labels = [
+            'default.default' => 'ProcessDefaultJob',
+            'default.high-priority' => 'ProcessHighPriorityJob',
+            'orders.created' => 'ProcessOrderCreated',
+            'orders.paid' => 'ProcessOrderPaid',
+            'orders.shipped' => 'ProcessOrderShipped',
+            'notifications.email' => 'SendEmailNotification',
+            'notifications.sms' => 'SendSmsNotification',
+            'notifications.push' => 'SendPushNotification',
+        ];
+
+        return $labels[$vhost.'.'.$queue] ?? 'UnknownJob';
+    }
+
+    private function combinedQueueName(string $vhost, string $queue): string
+    {
+        if ($vhost === 'default') {
+            return $queue;
+        }
+
+        return "{$vhost}.{$queue}";
     }
 }
