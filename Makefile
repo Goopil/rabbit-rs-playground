@@ -1,4 +1,4 @@
-.PHONY: up down build demo setup-vhosts status workers-simple workers-cluster workers
+.PHONY: up down build demo setup setup-vhosts setup-topology status workers-simple workers-cluster workers
 
 build:
 	./vendor/bin/sail build --no-cache
@@ -9,8 +9,13 @@ up:
 down:
 	./vendor/bin/sail down
 
+setup: setup-vhosts setup-topology
+
 setup-vhosts:
 	./vendor/bin/sail artisan rabbit-rs:setup-vhosts
+
+setup-topology:
+	./vendor/bin/sail artisan rabbit-rs:setup-topology
 
 demo:
 	./vendor/bin/sail artisan rabbit-rs:demo
