@@ -16,6 +16,7 @@ class RabbitRsDemoCommand extends Command
 {
     protected $signature = 'rabbit-rs:demo
                             {--setup=both : Setup to use (simple, cluster, or both)}
+                            {--mode=single : Mode to use (single, combined, or both)}
                             {--delay : Dispatch some jobs with delays}';
 
     protected $description = 'Dispatch demo jobs to RabbitMQ across all vhosts and queues';
@@ -23,6 +24,7 @@ class RabbitRsDemoCommand extends Command
     public function handle(): int
     {
         $setup = $this->option('setup');
+        $mode = $this->option('mode');
         $useDelay = $this->option('delay');
 
         if (! in_array($setup, ['simple', 'cluster', 'both'])) {
@@ -31,74 +33,83 @@ class RabbitRsDemoCommand extends Command
             return 1;
         }
 
+        if (! in_array($mode, ['single', 'combined', 'both'])) {
+            $this->error("Invalid mode: {$mode}. Use: single, combined, or both");
+
+            return 1;
+        }
+
         $setups = $setup === 'both' ? ['simple', 'cluster'] : [$setup];
+        $modes = $mode === 'both' ? ['single', 'combined'] : [$mode];
         $dispatched = 0;
 
         foreach ($setups as $s) {
-            $this->info("Dispatching to {$s} setup...");
+            foreach ($modes as $m) {
+                $prefix = $m === 'single' ? $s : "{$s}.all";
+                $this->info("Dispatching to {$s} setup (mode: {$m})...");
 
-            // /default vhost
-            ProcessDefaultJob::dispatch(['id' => $dispatched + 1, 'message' => "Default job on {$s}"])
-                ->onQueue("{$s}.default.default");
-            $dispatched++;
-            $this->line("  ✓ ProcessDefaultJob → {$s}.default.default");
+                // /default vhost
+                ProcessDefaultJob::dispatch(['id' => $dispatched + 1, 'message' => "Default job on {$s} ({$m})"])
+                    ->onQueue("{$prefix}.default");
+                $dispatched++;
+                $this->line("  ✓ ProcessDefaultJob → {$prefix}.default");
 
-            ProcessHighPriorityJob::dispatch(['id' => $dispatched + 1, 'message' => "High priority on {$s}"])
-                ->onQueue("{$s}.default.high-priority");
-            $dispatched++;
-            $this->line("  ✓ ProcessHighPriorityJob → {$s}.default.high-priority");
+                ProcessHighPriorityJob::dispatch(['id' => $dispatched + 1, 'message' => "High priority on {$s} ({$m})"])
+                    ->onQueue("{$prefix}.high-priority");
+                $dispatched++;
+                $this->line("  ✓ ProcessHighPriorityJob → {$prefix}.high-priority");
 
-            // /orders vhost
-            ProcessOrderCreated::dispatch(['order_id' => $dispatched + 1, 'customer' => 'John Doe', 'total' => 99.99])
-                ->onQueue("{$s}.orders.created");
-            $dispatched++;
-            $this->line("  ✓ ProcessOrderCreated → {$s}.orders.created");
+                // /orders vhost
+                ProcessOrderCreated::dispatch(['order_id' => $dispatched + 1, 'customer' => 'John Doe', 'total' => 99.99])
+                    ->onQueue("{$prefix}.orders.created");
+                $dispatched++;
+                $this->line("  ✓ ProcessOrderCreated → {$prefix}.orders.created");
 
-            if ($useDelay) {
-                ProcessOrderPaid::dispatch(['order_id' => $dispatched + 1, 'payment_method' => 'credit_card', 'amount' => 99.99])
-                    ->onQueue("{$s}.orders.paid")
-                    ->delay(now()->addSeconds(5));
-                $this->line("  ✓ ProcessOrderPaid → {$s}.orders.paid (delayed 5s)");
-            } else {
-                ProcessOrderPaid::dispatch(['order_id' => $dispatched + 1, 'payment_method' => 'credit_card', 'amount' => 99.99])
-                    ->onQueue("{$s}.orders.paid");
-                $this->line("  ✓ ProcessOrderPaid → {$s}.orders.paid");
+                if ($useDelay) {
+                    ProcessOrderPaid::dispatch(['order_id' => $dispatched + 1, 'payment_method' => 'credit_card', 'amount' => 99.99])
+                        ->onQueue("{$prefix}.orders.paid")
+                        ->delay(now()->addSeconds(5));
+                    $this->line("  ✓ ProcessOrderPaid → {$prefix}.orders.paid (delayed 5s)");
+                } else {
+                    ProcessOrderPaid::dispatch(['order_id' => $dispatched + 1, 'payment_method' => 'credit_card', 'amount' => 99.99])
+                        ->onQueue("{$prefix}.orders.paid");
+                    $this->line("  ✓ ProcessOrderPaid → {$prefix}.orders.paid");
+                }
+                $dispatched++;
+
+                ProcessOrderShipped::dispatch(['order_id' => $dispatched + 1, 'tracking_number' => 'TRK'.rand(100000, 999999), 'carrier' => 'UPS'])
+                    ->onQueue("{$prefix}.orders.shipped");
+                $dispatched++;
+                $this->line("  ✓ ProcessOrderShipped → {$prefix}.orders.shipped");
+
+                // /notifications vhost
+                SendEmailNotification::dispatch(['recipient' => 'user@example.com', 'subject' => "Welcome from {$s} ({$m})"])
+                    ->onQueue("{$prefix}.notifications.email");
+                $dispatched++;
+                $this->line("  ✓ SendEmailNotification → {$prefix}.notifications.email");
+
+                if ($useDelay) {
+                    SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)])
+                        ->onQueue("{$prefix}.notifications.sms")
+                        ->delay(now()->addSeconds(10));
+                    $this->line("  ✓ SendSmsNotification → {$prefix}.notifications.sms (delayed 10s)");
+                } else {
+                    SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)])
+                        ->onQueue("{$prefix}.notifications.sms");
+                    $this->line("  ✓ SendSmsNotification → {$prefix}.notifications.sms");
+                }
+                $dispatched++;
+
+                SendPushNotification::dispatch(['device_token' => 'token_'.bin2hex(random_bytes(8)), 'title' => "Push from {$s} ({$m})", 'body' => 'Hello!'])
+                    ->onQueue("{$prefix}.notifications.push");
+                $dispatched++;
+                $this->line("  ✓ SendPushNotification → {$prefix}.notifications.push");
             }
-            $dispatched++;
-
-            ProcessOrderShipped::dispatch(['order_id' => $dispatched + 1, 'tracking_number' => 'TRK'.rand(100000, 999999), 'carrier' => 'UPS'])
-                ->onQueue("{$s}.orders.shipped");
-            $dispatched++;
-            $this->line("  ✓ ProcessOrderShipped → {$s}.orders.shipped");
-
-            // /notifications vhost
-            SendEmailNotification::dispatch(['recipient' => 'user@example.com', 'subject' => "Welcome from {$s}"])
-                ->onQueue("{$s}.notifications.email");
-            $dispatched++;
-            $this->line("  ✓ SendEmailNotification → {$s}.notifications.email");
-
-            if ($useDelay) {
-                SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)])
-                    ->onQueue("{$s}.notifications.sms")
-                    ->delay(now()->addSeconds(10));
-                $this->line("  ✓ SendSmsNotification → {$s}.notifications.sms (delayed 10s)");
-            } else {
-                SendSmsNotification::dispatch(['phone' => '+1234567890', 'message' => 'Your code: '.rand(1000, 9999)])
-                    ->onQueue("{$s}.notifications.sms");
-                $this->line("  ✓ SendSmsNotification → {$s}.notifications.sms");
-            }
-            $dispatched++;
-
-            SendPushNotification::dispatch(['device_token' => 'token_'.bin2hex(random_bytes(8)), 'title' => "Push from {$s}", 'body' => 'Hello!'])
-                ->onQueue("{$s}.notifications.push");
-            $dispatched++;
-            $this->line("  ✓ SendPushNotification → {$s}.notifications.push");
         }
 
         $this->newLine();
-        $this->info("Dispatched {$dispatched} jobs to ".implode(', ', $setups).' setup(s).');
-        $this->info('Run "sail artisan rabbit-rs:work --queue=<worker-profile>" to consume.');
-        $this->info('Worker profiles: simple.default, simple.orders, simple.notifications, cluster.default, cluster.orders, cluster.notifications');
+        $this->info("Dispatched {$dispatched} jobs to ".implode(', ', $setups).' setup(s), mode: '.implode(', ', $modes).'.');
+        $this->info('Workers are managed by supervisord. Check with: docker exec <container> supervisorctl status');
 
         return 0;
     }

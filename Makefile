@@ -1,4 +1,4 @@
-.PHONY: up down build demo setup setup-vhosts setup-topology status workers-simple workers-cluster workers
+.PHONY: up down build demo setup setup-vhosts setup-topology status workers-stop workers-restart workers-status demo-combined
 
 build:
 	./vendor/bin/sail build --no-cache
@@ -29,21 +29,20 @@ demo-simple:
 demo-cluster:
 	./vendor/bin/sail artisan rabbit-rs:demo --setup=cluster
 
+demo-combined:
+	./vendor/bin/sail artisan rabbit-rs:demo --mode=combined
+
+demo-both:
+	./vendor/bin/sail artisan rabbit-rs:demo --mode=both
+
 status:
 	./vendor/bin/sail artisan rabbit-rs:status
 
-workers-simple:
-	@echo "Starting simple workers..."
-	@./vendor/bin/sail artisan rabbit-rs:work --queue=simple.default &
-	@./vendor/bin/sail artisan rabbit-rs:work --queue=simple.orders &
-	@./vendor/bin/sail artisan rabbit-rs:work --queue=simple.notifications &
-	@echo "Simple workers started in background"
+workers-status:
+	./vendor/bin/sail exec supervisorctl status
 
-workers-cluster:
-	@echo "Starting cluster workers..."
-	@./vendor/bin/sail artisan rabbit-rs:work --queue=cluster.default &
-	@./vendor/bin/sail artisan rabbit-rs:work --queue=cluster.orders &
-	@./vendor/bin/sail artisan rabbit-rs:work --queue=cluster.notifications &
-	@echo "Cluster workers started in background"
+workers-stop:
+	./vendor/bin/sail exec supervisorctl stop rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all rabbit-rs-cluster-all
 
-workers: workers-simple workers-cluster
+workers-restart:
+	./vendor/bin/sail exec supervisorctl restart rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all rabbit-rs-cluster-all

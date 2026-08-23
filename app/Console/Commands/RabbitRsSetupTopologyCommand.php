@@ -38,6 +38,10 @@ class RabbitRsSetupTopologyCommand extends Command
             'simple.default.high-priority',
             'cluster.default.default',
             'cluster.default.high-priority',
+            'simple.all.default',
+            'simple.all.high-priority',
+            'cluster.all.default',
+            'cluster.all.high-priority',
         ],
         '/orders' => [
             'simple.orders.created',
@@ -46,6 +50,12 @@ class RabbitRsSetupTopologyCommand extends Command
             'cluster.orders.created',
             'cluster.orders.paid',
             'cluster.orders.shipped',
+            'simple.all.orders.created',
+            'simple.all.orders.paid',
+            'simple.all.orders.shipped',
+            'cluster.all.orders.created',
+            'cluster.all.orders.paid',
+            'cluster.all.orders.shipped',
         ],
         '/notifications' => [
             'simple.notifications.email',
@@ -54,6 +64,12 @@ class RabbitRsSetupTopologyCommand extends Command
             'cluster.notifications.email',
             'cluster.notifications.sms',
             'cluster.notifications.push',
+            'simple.all.notifications.email',
+            'simple.all.notifications.sms',
+            'simple.all.notifications.push',
+            'cluster.all.notifications.email',
+            'cluster.all.notifications.sms',
+            'cluster.all.notifications.push',
         ],
     ];
 
