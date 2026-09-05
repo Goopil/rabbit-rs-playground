@@ -10,7 +10,12 @@ const SSR_METRICS_PORT = Number(process.env.SSR_METRICS_PORT || 13716);
 
 const orchestrator = new Orchestrator({
     logger: console,
-    workers: { count: Number(process.env.WEB_CONCURRENCY) || 'auto' },
+    workers: {
+        count: Number(process.env.WEB_CONCURRENCY) || 'auto',
+        maxRssMb: Number(process.env.SSR_MAX_RSS_MB) || 0,
+    },
+    // RSS recycling is fed by worker health heartbeats — disabled without them.
+    health: { heartbeatMs: Number(process.env.SSR_HEARTBEAT_MS) || 10000 },
 });
 
 const sizing = createContainerSizingPlugin();

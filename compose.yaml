@@ -20,6 +20,7 @@ services:
             SUPERVISOR_HORIZON: '${SUPERVISOR_HORIZON:-true}'
             SUPERVISOR_SSR: '${SUPERVISOR_SSR:-true}'
             SSR_PORT: '${SSR_PORT:-13715}'
+            SSR_MAX_RSS_MB: '${SSR_MAX_RSS_MB:-0}'
             OCTANE_WATCH: '${OCTANE_WATCH:-}'
         volumes:
             - '.:/var/www/html'
