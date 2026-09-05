@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/queuelab",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\QueueLab\\": "app/",
+            "Modules\\QueueLab\\Database\\Factories\\": "database/factories/",
+            "Modules\\QueueLab\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\QueueLab\\Tests\\": "tests/"
+        }
+    }
+}

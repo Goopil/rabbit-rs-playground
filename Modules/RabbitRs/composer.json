@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/rabbitrs",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\RabbitRs\\": "app/",
+            "Modules\\RabbitRs\\Database\\Factories\\": "database/factories/",
+            "Modules\\RabbitRs\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\RabbitRs\\Tests\\": "tests/"
+        }
+    }
+}

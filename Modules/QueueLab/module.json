@@ -1,0 +1,11 @@
+{
+    "name": "QueueLab",
+    "alias": "queuelab",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\QueueLab\\Providers\\QueueLabServiceProvider"
+    ],
+    "files": []
+}

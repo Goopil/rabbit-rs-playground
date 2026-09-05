@@ -1,0 +1,11 @@
+{
+    "name": "FrontLab",
+    "alias": "frontlab",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\FrontLab\\Providers\\FrontLabServiceProvider"
+    ],
+    "files": []
+}

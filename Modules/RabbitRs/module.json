@@ -1,0 +1,11 @@
+{
+    "name": "RabbitRs",
+    "alias": "rabbitrs",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\RabbitRs\\Providers\\RabbitRsServiceProvider"
+    ],
+    "files": []
+}

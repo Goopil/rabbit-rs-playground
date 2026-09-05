@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/frontlab",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\FrontLab\\": "app/",
+            "Modules\\FrontLab\\Database\\Factories\\": "database/factories/",
+            "Modules\\FrontLab\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\FrontLab\\Tests\\": "tests/"
+        }
+    }
+}
