@@ -1,4 +1,4 @@
-.PHONY: up down build demo setup status horizon horizon-probes ssr-build stress sentinel-watch chaos-kill-master chaos-heal
+.PHONY: up down build demo setup status horizon horizon-probes ssr-build stress load-test sentinel-watch chaos-kill-master chaos-heal
 
 build:
 	./vendor/bin/sail build --no-cache
@@ -23,6 +23,18 @@ demo-redis:
 
 stress:
 	./vendor/bin/sail artisan queue-lab:stress --count=100 --sleep-ms=5
+
+load-test:
+	@echo "Dispatching ~600 jobs across both transports..."; \
+	start=$$(date +%s); \
+	./vendor/bin/sail artisan queue-lab:stress --count=150 --queue=bulk --sleep-ms=20 --fail-every=50 --connection=redis-sentinel; \
+	./vendor/bin/sail artisan queue-lab:stress --count=75  --queue=high-priority --sleep-ms=10 --connection=redis-sentinel; \
+	./vendor/bin/sail artisan queue-lab:stress --count=75  --queue=default --sleep-ms=10 --connection=redis-sentinel; \
+	./vendor/bin/sail artisan queue-lab:stress --count=100 --queue=bulk --sleep-ms=20 --fail-every=50 --connection=rabbit-rs; \
+	./vendor/bin/sail artisan queue-lab:stress --count=100 --queue=high-priority --sleep-ms=10 --connection=rabbit-rs; \
+	./vendor/bin/sail artisan queue-lab:stress --count=100 --queue=default --sleep-ms=10 --connection=rabbit-rs; \
+	end=$$(date +%s); \
+	echo "Dispatched in $$((end-start))s → watch http://localhost/horizon/dashboard (Recent, Metrics, Failed)"
 
 horizon:
 	./vendor/bin/sail artisan horizon:status
