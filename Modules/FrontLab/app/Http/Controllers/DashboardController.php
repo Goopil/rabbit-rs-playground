@@ -3,6 +3,7 @@
 namespace Modules\FrontLab\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Contracts\Queue\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
 use Laravel\Horizon\Contracts\JobRepository;
@@ -41,10 +42,12 @@ class DashboardController extends Controller
     private function rabbitDepth(string $queue): ?int
     {
         try {
-            return app(Illuminate\Contracts\Queue\Factory::class)
+            return app(Factory::class)
                 ->connection('rabbit-rs')
                 ->size($queue);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            report($e);
+
             return null;
         }
     }

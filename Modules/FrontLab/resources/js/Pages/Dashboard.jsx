@@ -13,9 +13,13 @@ const QUEUES = ['default', 'high-priority', 'bulk'];
 function StatCard({ label, value, accent = '' }) {
     return (
         <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-            <div className="p-6">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
-                <p className={`mt-2 text-3xl font-semibold ${accent || 'text-gray-900'}`}>{value}</p>
+            <div className="flex items-baseline justify-between gap-2 px-4 py-2.5">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                    {label}
+                </span>
+                <span className={`text-xl font-semibold ${accent || 'text-gray-900'}`}>
+                    {value}
+                </span>
             </div>
         </div>
     );
@@ -65,7 +69,7 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         <StatCard label="Pending" value={horizon.pending} accent="text-amber-600" />
                         <StatCard label="Recent" value={horizon.recent} />
                         <StatCard label="Failed" value={horizon.failed} accent="text-rose-600" />

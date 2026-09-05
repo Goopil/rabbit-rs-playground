@@ -315,12 +315,12 @@ function StatCard({ label, value, accent = "" }) {
 	return /* @__PURE__ */ jsx("div", {
 		className: "overflow-hidden bg-white shadow-sm sm:rounded-lg",
 		children: /* @__PURE__ */ jsxs("div", {
-			className: "p-6",
-			children: [/* @__PURE__ */ jsx("p", {
-				className: "text-xs font-medium uppercase tracking-wide text-gray-500",
+			className: "flex items-baseline justify-between gap-2 px-4 py-2.5",
+			children: [/* @__PURE__ */ jsx("span", {
+				className: "text-[11px] font-medium uppercase tracking-wide text-gray-500",
 				children: label
-			}), /* @__PURE__ */ jsx("p", {
-				className: `mt-2 text-3xl font-semibold ${accent || "text-gray-900"}`,
+			}), /* @__PURE__ */ jsx("span", {
+				className: `text-xl font-semibold ${accent || "text-gray-900"}`,
 				children: value
 			})]
 		})
@@ -373,7 +373,7 @@ function Dashboard() {
 						children: success
 					}),
 					/* @__PURE__ */ jsxs("div", {
-						className: "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4",
+						className: "grid grid-cols-2 gap-3 sm:grid-cols-4",
 						children: [
 							/* @__PURE__ */ jsx(StatCard, {
 								label: "Pending",
