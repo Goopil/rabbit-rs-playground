@@ -1,4 +1,4 @@
-.PHONY: up down build demo setup setup-vhosts setup-topology status workers-stop workers-restart workers-status demo-combined demo-stress check-queues
+.PHONY: up down build demo setup setup-vhosts setup-topology status horizon horizon-probes ssr-build stress sentinel-watch chaos-kill-master chaos-heal
 
 build:
 	./vendor/bin/sail build --no-cache
@@ -18,60 +18,34 @@ setup-topology:
 	./vendor/bin/sail artisan rabbit-rs:setup-topology
 
 demo:
-	./vendor/bin/sail artisan rabbit-rs:demo
+	./vendor/bin/sail artisan rabbit-rs:demo --connection=both
 
-demo-delay:
-	./vendor/bin/sail artisan rabbit-rs:demo --delay
+demo-rabbit:
+	./vendor/bin/sail artisan rabbit-rs:demo --connection=rabbit-rs
 
-demo-simple:
-	./vendor/bin/sail artisan rabbit-rs:demo --setup=simple
+demo-redis:
+	./vendor/bin/sail artisan rabbit-rs:demo --connection=redis-sentinel
 
-demo-cluster:
-	./vendor/bin/sail artisan rabbit-rs:demo --setup=cluster
-
-demo-combined:
-	./vendor/bin/sail artisan rabbit-rs:demo --mode=combined
-
-demo-both:
-	./vendor/bin/sail artisan rabbit-rs:demo --mode=both
-
-demo-stress:
-	./vendor/bin/sail artisan rabbit-rs:demo --mode=combined --count=625
-
-check-queues:
-	@echo "Checking combined queue depths..."
-	@for vhost in default orders notifications; do \
-		vencoded=$$(python3 -c "import urllib.parse; print(urllib.parse.quote('/'+'$$vhost'))"); \
-		echo "  Vhost /$$vhost:"; \
-		curl -s -u guest:guest "http://localhost:15672/api/queues/$$vencoded" 2>/dev/null | \
-		python3 -c "import json,sys; [print(f'    {q[\"name\"]}: {q[\"messages\"]} msgs') for q in json.load(sys.stdin) if 'all' in q['name']]" 2>/dev/null; \
-		curl -s -u guest:guest "http://localhost:15673/api/queues/$$vencoded" 2>/dev/null | \
-		python3 -c "import json,sys; [print(f'    {q[\"name\"]}: {q[\"messages\"]} msgs') for q in json.load(sys.stdin) if 'all' in q['name']]" 2>/dev/null; \
-	done
-	@echo ""
-	@echo "Checking if all combined queues are drained..."
-	@total=$$(for port in 15672 15673; do \
-		for vhost in default orders notifications; do \
-			vencoded=$$(python3 -c "import urllib.parse; print(urllib.parse.quote('/'+'$$vhost'))"); \
-			curl -s -u guest:guest "http://localhost:$$port/api/queues/$$vencoded" 2>/dev/null | \
-			python3 -c "import json,sys; print(sum(q['messages'] for q in json.load(sys.stdin) if 'all' in q['name']))" 2>/dev/null; \
-		done; \
-	done); \
-	total=$$(echo $$total | python3 -c "import sys; print(sum(int(x) for x in sys.stdin.read().split()))"); \
-	if [ "$$total" = "0" ]; then \
-		echo "✓ All combined queues drained!"; \
-	else \
-		echo "✗ $$total messages still pending in combined queues"; \
-	fi
+stress:
+	./vendor/bin/sail artisan queue-lab:stress --count=100 --sleep-ms=5
 
 status:
 	./vendor/bin/sail artisan rabbit-rs:status
 
-workers-status:
-	./vendor/bin/sail exec laravel.test supervisorctl status
+horizon:
+	./vendor/bin/sail artisan horizon:status
 
-workers-stop:
-	./vendor/bin/sail exec laravel.test supervisorctl stop rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all-default rabbit-rs-simple-all-orders rabbit-rs-simple-all-notifications rabbit-rs-cluster-all-default rabbit-rs-cluster-all-orders rabbit-rs-cluster-all-notifications
+horizon-probes:
+	./vendor/bin/sail artisan horizon:ready && ./vendor/bin/sail artisan horizon:alive
 
-workers-restart:
-	./vendor/bin/sail exec laravel.test supervisorctl restart rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all-default rabbit-rs-simple-all-orders rabbit-rs-simple-all-notifications rabbit-rs-cluster-all-default rabbit-rs-cluster-all-orders rabbit-rs-cluster-all-notifications
+ssr-build:
+	./vendor/bin/sail npm run build && ./vendor/bin/sail npm run build:ssr
+
+sentinel-watch:
+	./vendor/bin/sail exec sentinel-1 valkey-cli -p 26379 --json subscribe "+switch-master" "+failover-end" "+sdown" "+odown"
+
+chaos-kill-master:
+	docker compose stop valkey-master
+
+chaos-heal:
+	docker compose start valkey-master
