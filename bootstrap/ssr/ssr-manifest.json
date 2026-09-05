@@ -1,5 +1,6 @@
 {
   "\u0000rolldown/runtime.js": [],
+  "Modules/FrontLab/resources/js/Pages/Dashboard.jsx": [],
   "resources/js/Components/ApplicationLogo.jsx": [],
   "resources/js/Components/Checkbox.jsx": [],
   "resources/js/Components/DangerButton.jsx": [],
@@ -20,7 +21,6 @@
   "resources/js/Pages/Auth/Register.jsx": [],
   "resources/js/Pages/Auth/ResetPassword.jsx": [],
   "resources/js/Pages/Auth/VerifyEmail.jsx": [],
-  "resources/js/Pages/Dashboard.jsx": [],
   "resources/js/Pages/Profile/Edit.jsx": [],
   "resources/js/Pages/Profile/Partials/DeleteUserForm.jsx": [],
   "resources/js/Pages/Profile/Partials/UpdatePasswordForm.jsx": [],

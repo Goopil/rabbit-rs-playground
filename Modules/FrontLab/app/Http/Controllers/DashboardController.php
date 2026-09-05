@@ -27,7 +27,7 @@ class DashboardController extends Controller
             return response()->json($stats);
         }
 
-        return inertia('Dashboard', [
+        return inertia('FrontLab/Dashboard', [
             'stats' => $stats,
         ]);
     }

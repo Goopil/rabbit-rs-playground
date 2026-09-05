@@ -13,7 +13,10 @@
         <!-- Scripts -->
         @routes
         @viteReactRefresh
-        @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
+        {{-- Pages are lazy chunks emitted by the import.meta.glob in app.jsx
+             (central + Modules/*/resources/js/Pages) — do not preload here,
+             the manifest path is no longer derivable from the component name. --}}
+        @vite('resources/js/app.jsx')
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
