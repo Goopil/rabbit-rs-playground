@@ -133,6 +133,96 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+    valkey-master:
+        image: 'valkey/valkey:8'
+        command: ['valkey-server', '/etc/valkey/valkey.conf']
+        volumes:
+            - './docker/valkey/master.conf:/etc/valkey/valkey.conf:ro'
+            - 'sail-valkey-master:/data'
+        ports:
+            - '${FORWARD_VALKEY_MASTER_PORT:-6380}:6379'
+        networks:
+            - sail
+        healthcheck:
+            test: ['CMD', 'valkey-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 10
+    valkey-1:
+        image: 'valkey/valkey:8'
+        command: ['valkey-server', '/etc/valkey/valkey.conf']
+        volumes:
+            - './docker/valkey/replica.conf:/etc/valkey/valkey.conf:ro'
+            - 'sail-valkey-1:/data'
+        ports:
+            - '${FORWARD_VALKEY_1_PORT:-6381}:6379'
+        networks:
+            - sail
+        depends_on:
+            valkey-master:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'valkey-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 10
+    valkey-2:
+        image: 'valkey/valkey:8'
+        command: ['valkey-server', '/etc/valkey/valkey.conf']
+        volumes:
+            - './docker/valkey/replica.conf:/etc/valkey/valkey.conf:ro'
+            - 'sail-valkey-2:/data'
+        ports:
+            - '${FORWARD_VALKEY_2_PORT:-6382}:6379'
+        networks:
+            - sail
+        depends_on:
+            valkey-master:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'valkey-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 10
+    sentinel-1:
+        image: 'valkey/valkey:8'
+        command: ['sh', '-c', 'cp /etc/valkey/sentinel-template.conf /data/sentinel.conf && exec valkey-sentinel /data/sentinel.conf']
+        volumes:
+            - './docker/valkey/sentinel.conf:/etc/valkey/sentinel-template.conf:ro'
+            - 'sail-sentinel-1:/data'
+        ports:
+            - '${FORWARD_SENTINEL_1_PORT:-26379}:26379'
+        networks:
+            - sail
+        depends_on:
+            valkey-master:
+                condition: service_healthy
+    sentinel-2:
+        image: 'valkey/valkey:8'
+        command: ['sh', '-c', 'cp /etc/valkey/sentinel-template.conf /data/sentinel.conf && exec valkey-sentinel /data/sentinel.conf']
+        volumes:
+            - './docker/valkey/sentinel.conf:/etc/valkey/sentinel-template.conf:ro'
+            - 'sail-sentinel-2:/data'
+        ports:
+            - '${FORWARD_SENTINEL_2_PORT:-26380}:26379'
+        networks:
+            - sail
+        depends_on:
+            valkey-master:
+                condition: service_healthy
+    sentinel-3:
+        image: 'valkey/valkey:8'
+        command: ['sh', '-c', 'cp /etc/valkey/sentinel-template.conf /data/sentinel.conf && exec valkey-sentinel /data/sentinel.conf']
+        volumes:
+            - './docker/valkey/sentinel.conf:/etc/valkey/sentinel-template.conf:ro'
+            - 'sail-sentinel-3:/data'
+        ports:
+            - '${FORWARD_SENTINEL_3_PORT:-26381}:26379'
+        networks:
+            - sail
+        depends_on:
+            valkey-master:
+                condition: service_healthy
 networks:
     sail:
         driver: bridge
@@ -146,4 +236,16 @@ volumes:
     sail-rabbitmq-2:
         driver: local
     sail-rabbitmq-3:
+        driver: local
+    sail-valkey-master:
+        driver: local
+    sail-valkey-1:
+        driver: local
+    sail-valkey-2:
+        driver: local
+    sail-sentinel-1:
+        driver: local
+    sail-sentinel-2:
+        driver: local
+    sail-sentinel-3:
         driver: local
