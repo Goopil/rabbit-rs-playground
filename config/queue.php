@@ -73,6 +73,15 @@ return [
             'after_commit' => false,
         ],
 
+        'redis-sentinel' => [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'default',
+            'queue' => env('REDIS_QUEUE', 'default'),
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

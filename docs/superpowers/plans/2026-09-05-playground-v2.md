@@ -458,7 +458,13 @@ Expected: PASS (all suite green).
 
 - [ ] **Step 7: Update supervisord**
 
-Replace the four `[program:rabbit-rs-*]` blocks in `docker/8.5/supervisord.conf` with:
+NOTE (updated after the rabbit-rs 0.1.0 connection-first migration): `docker/8.5/supervisord.conf`
+now contains 8 rabbit-rs worker programs (`queue:work <connection> --queue=…`, one per
+connection×profile) plus fixed supervisorctl sections. Instead of deleting them:
+
+1. Add `autostart=%(ENV_SUPERVISOR_RABBIT_RS_WORKERS)s` to each of the 8 rabbit worker programs
+   (replacing any existing `autostart=true`).
+2. Append the horizon program (keep the existing worker programs and supervisorctl sections):
 
 ```ini
 [program:horizon]
@@ -476,7 +482,7 @@ stderr_logfile_maxbytes=0
 
 - [ ] **Step 8: Env gates**
 
-`.env` + `.env.example`: remove `SUPERVISOR_RABBIT_RS_WORKERS`, add `SUPERVISOR_HORIZON=true`.
+`.env` + `.env.example`: set `SUPERVISOR_RABBIT_RS_WORKERS=false` (rabbit workers defined but off — Horizon-only per user decision, re-enable later with rabbit-rs:work / queue:work), add `SUPERVISOR_HORIZON=true`, set `QUEUE_CONNECTION=redis-sentinel`.
 
 - [ ] **Step 9: Rebuild, boot, verify end to end**
 
