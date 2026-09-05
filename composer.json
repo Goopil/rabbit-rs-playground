@@ -11,7 +11,7 @@
     "require": {
         "php": "^8.3",
         "goopil/laravel-redis-sentinel": "^1.8",
-        "goopil/rabbit-rs-laravel": "^0.0.4",
+        "goopil/rabbit-rs-laravel": "^0.1.0",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.0",

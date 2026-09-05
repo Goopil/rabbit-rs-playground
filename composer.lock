@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7c86c0e6f9b0423531ba157a07e8b31f",
+    "content-hash": "813d3dffc9c9d8a7cf89fea45c020bc3",
     "packages": [
         {
             "name": "brick/math",
@@ -639,28 +639,32 @@
         },
         {
             "name": "goopil/rabbit-rs-laravel",
-            "version": "v0.0.4",
+            "version": "v0.1.0",
             "source": {
                 "type": "git",
-                "url": "git@github.com:Goopil/rabbit-rs-laravel.git",
-                "reference": "7ad3dfce504ec55a271cdd8d79a88ab2c49c3362"
+                "url": "https://github.com/Goopil/rabbit-rs-laravel",
+                "reference": "67dfa61f4615f8666ee7873a3f11c1a10018dce3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/7ad3dfce504ec55a271cdd8d79a88ab2c49c3362",
-                "reference": "7ad3dfce504ec55a271cdd8d79a88ab2c49c3362",
+                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/67dfa61f4615f8666ee7873a3f11c1a10018dce3",
+                "reference": "67dfa61f4615f8666ee7873a3f11c1a10018dce3",
                 "shasum": ""
             },
             "require": {
                 "ext-rabbit_rs": "^0.0",
                 "illuminate/queue": "^12.0 || ^13.0",
                 "illuminate/support": "^12.0 || ^13.0",
-                "php": "^8.4"
+                "php": "^8.4",
+                "symfony/process": "^7.2 || ^8.0"
             },
             "require-dev": {
                 "orchestra/testbench": "^10.0 || ^11.0",
                 "pestphp/pest": "^4.0",
                 "pestphp/pest-plugin-laravel": "^4.1"
+            },
+            "suggest": {
+                "laravel/horizon": "Required to use the Horizon dashboard integration (worker=horizon)"
             },
             "type": "library",
             "extra": {
@@ -680,7 +684,7 @@
                 "MIT"
             ],
             "description": "Laravel queue driver for the Rabbit RS native extension",
-            "time": "2026-08-23T12:42:24+00:00"
+            "time": "2026-09-04T05:25:12+00:00"
         },
         {
             "name": "graham-campbell/result-type",
