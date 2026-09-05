@@ -37,6 +37,7 @@ public function readyNow($queue = null)
 }
 ```
 
+
 (`size()` is already implemented per the `Illuminate\Contracts\Queue\Queue`
 contract — AMQP queue depth via `rabbit_rs`.)
 
@@ -125,3 +126,42 @@ In the native pool (or `RabbitMqQueue::publish`), recover instead of surfacing t
 Park a connected pool longer than the heartbeat window (or inject a closed connection),
 publish once, and assert the publish succeeds (or retries) instead of throwing
 `publish deadline expired`.
+
+## Bug: exhausted rabbit-rs jobs are recorded "completed" in Horizon, not failed
+
+### Symptom
+
+With `worker=horizon`, a job that exhausts its retries (`maxTries=3`) on the
+rabbit-rs connection:
+
+- IS persisted in the `failed_jobs` table (framework path works),
+- but shows **status=completed** in Horizon's Recent Jobs page,
+- and never appears in Horizon's Failed Jobs page (`failed_jobs` zset).
+
+Observed: 4 redis-sentinel failures correctly listed; 3 rabbit-rs failures of
+the same batch missing from the zset while marked `completed` (with
+`completed_at` set) in their job hashes.
+
+### Root cause (sketch)
+
+`Illuminate\Queue\Jobs\Job::fail()` calls `$this->delete()` **before** raising
+the `JobFailed` event. `Horizon\RabbitMqQueue::delete()` fires Horizon's
+`JobDeleted` event, and Horizon's `MarkJobAsComplete` listener marks the job
+completed and adds it to `completed_jobs`. Horizon's `MarkJobAsFailed` then
+either does not run or is superseded by the completed state. Horizon's own
+`RedisQueue` job (`Laravel\Horizon\Jobs\RedisJob`) overrides `delete()/fail()`
+to avoid this ordering problem.
+
+### Suggested fix
+
+Follow Horizon's RedisJob implementation: in the rabbit-rs `RabbitMqJob`,
+override `fail($e)` to record the failure (or set a flag) before delegating to
+`delete()`, so `MarkJobAsFailed` wins over the `JobDeleted`-triggered
+"completed" status — e.g. delete the message with a `nack`-style handling that
+skips firing `JobDeleted` when the job is failing.
+
+### Regression test
+
+Dispatch a failing job (`maxTries=1`) on the rabbit-rs connection with
+`worker=horizon`; assert the job appears in Horizon's `failed_jobs` zset with
+status `failed` and NOT in `completed_jobs`.

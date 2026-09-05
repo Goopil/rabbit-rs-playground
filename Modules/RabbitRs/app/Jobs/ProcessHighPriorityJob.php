@@ -17,6 +17,15 @@ class ProcessHighPriorityJob implements ShouldQueue
         public array $payload
     ) {}
 
+    public function tags(): array
+    {
+        return [
+            'connection:'.($this->connection ?? config('queue.default')),
+            'queue:'.($this->queue ?? 'default'),
+            'job:high-priority',
+        ];
+    }
+
     public function handle(): void
     {
         Log::info('ProcessHighPriorityJob', [

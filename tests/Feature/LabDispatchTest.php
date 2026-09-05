@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Modules\QueueLab\Jobs\StressJob;
 use Modules\RabbitRs\Jobs\ProcessDefaultJob;
 use Tests\TestCase;
 
@@ -58,5 +59,23 @@ class LabDispatchTest extends TestCase
         Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'default');
         Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'high-priority');
         Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'bulk');
+    }
+
+    public function test_jobs_expose_horizon_tags(): void
+    {
+        $default = new ProcessDefaultJob(['id' => 1]);
+        $default->onConnection('rabbit-rs')->onQueue('high-priority');
+
+        $stress = new StressJob(1);
+        $stress->onConnection('redis-sentinel')->onQueue('bulk');
+
+        $this->assertSame(
+            ['connection:rabbit-rs', 'queue:high-priority', 'job:default'],
+            $default->tags(),
+        );
+        $this->assertSame(
+            ['connection:redis-sentinel', 'queue:bulk', 'job:stress'],
+            $stress->tags(),
+        );
     }
 }

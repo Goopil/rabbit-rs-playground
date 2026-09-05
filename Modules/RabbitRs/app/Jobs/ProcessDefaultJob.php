@@ -17,6 +17,15 @@ class ProcessDefaultJob implements ShouldQueue
         public array $payload
     ) {}
 
+    public function tags(): array
+    {
+        return [
+            'connection:'.($this->connection ?? config('queue.default')),
+            'queue:'.($this->queue ?? 'default'),
+            'job:default',
+        ];
+    }
+
     public function handle(): void
     {
         Log::info('ProcessDefaultJob', [

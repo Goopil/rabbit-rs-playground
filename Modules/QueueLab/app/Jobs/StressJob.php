@@ -20,6 +20,15 @@ class StressJob implements ShouldQueue
         public int $failEvery = 0,
     ) {}
 
+    public function tags(): array
+    {
+        return [
+            'connection:'.($this->connection ?? config('queue.default')),
+            'queue:'.($this->queue ?? 'default'),
+            'job:stress',
+        ];
+    }
+
     public function handle(): void
     {
         if ($this->sleepMs > 0) {
