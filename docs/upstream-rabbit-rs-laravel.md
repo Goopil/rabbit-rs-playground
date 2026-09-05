@@ -40,6 +40,14 @@ public function readyNow($queue = null)
 (`size()` is already implemented per the `Illuminate\Contracts\Queue\Queue`
 contract — AMQP queue depth via `rabbit_rs`.)
 
+### Playground workaround
+
+A **local vendor patch** adds exactly the fix above to
+`vendor/goopil/rabbit-rs-laravel/src/Horizon/RabbitMqQueue.php` (marked
+`LOCAL VENDOR PATCH`, overwritten by `composer install`). With it, a Horizon
+supervisor consumes the `rabbit-rs` connection normally (`balance=simple`,
+jobs recorded end-to-end in the dashboard).
+
 ### Regression test
 
 Configure a Horizon supervisor on a rabbit-rs connection (`balance=auto` and
@@ -65,6 +73,9 @@ Merge `$this->defaults` into `$config` before the `worker` lookup (or read
 
 `config/queue.php` declares `'worker' => env('RABBIT_RS_WORKER', 'default')`
 on the connection itself.
+
+The readyNow() supervisor fix above also depends on this: the
+`Horizon\RabbitMqQueue` class is only selected when `worker=horizon` resolves.
 
 ## Bug: `publish deadline expired` on first publish after idle (long-lived workers)
 

@@ -27,7 +27,7 @@ class QueueTopologyTest extends TestCase
         $this->assertSame('bulk', $connection['subscriptions']['bulk']['queue']);
     }
 
-    public function test_horizon_supervises_the_redis_queues(): void
+    public function test_horizon_supervises_all_queues_on_both_transports(): void
     {
         $supervisors = config('horizon.environments.local');
 
@@ -35,6 +35,7 @@ class QueueTopologyTest extends TestCase
         $this->assertSame('redis-sentinel', $supervisors['supervisor-horizon']['connection']);
         $this->assertSame(['bulk'], $supervisors['supervisor-bulk']['queue']);
         $this->assertSame('redis-sentinel', $supervisors['supervisor-bulk']['connection']);
-        $this->assertArrayNotHasKey('supervisor-rabbit', $supervisors);
+        $this->assertSame(['default', 'high-priority', 'bulk'], $supervisors['supervisor-rabbit']['queue']);
+        $this->assertSame('rabbit-rs', $supervisors['supervisor-rabbit']['connection']);
     }
 }

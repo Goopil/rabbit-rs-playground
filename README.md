@@ -9,7 +9,7 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 | Program | Role |
 |---------|------|
 | `php` | Octane/Swoole HTTP server (port 80) |
-| `horizon` | Queue workers for **all** queues — `redis-sentinel` (`default`, `high-priority`, `bulk`) and `rabbit-rs` (same names), via `RABBIT_RS_WORKER=horizon` |
+| `horizon` | Queue workers for **all** queues on both transports — `redis-sentinel` and `rabbit-rs` (same flat names), via `RABBIT_RS_WORKER=horizon` + a local vendor patch (see docs/upstream-rabbit-rs-laravel.md) |
 | `ssr` | Node ClusterKit orchestrator running the Inertia SSR server (`POST /render` on 127.0.0.1:13715) |
 
 ### Valkey HA set (compose)
@@ -18,7 +18,7 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 
 ### RabbitMQ infra
 
-Single node (`rabbitmq-simple`), one vhost, one exchange (`laravel.jobs`), 3 quorum queues (`default`, `high-priority`, `bulk`) — **flat queue names, identical on both transports**. Horizon consumes the `rabbit-rs` connection: rabbit-rs jobs appear in the Horizon dashboard next to Redis jobs.
+Single node (`rabbitmq-simple`), one vhost, one exchange (`laravel.jobs`), 3 quorum queues (`default`, `high-priority`, `bulk`) — **flat queue names, identical on both transports**. Horizon consumes BOTH connections (`supervisor-horizon`/`supervisor-bulk` on redis-sentinel, `supervisor-rabbit` on rabbit-rs): all jobs appear in the Horizon dashboard.
 
 ## Modules
 
@@ -63,7 +63,7 @@ sail artisan migrate --force && sail artisan db:seed --force
 
 ```bash
 sail artisan rabbit-rs:demo --connection=redis-sentinel   # → consumed by Horizon (redis-sentinel)
-sail artisan rabbit-rs:demo --connection=rabbit-rs        # → consumed by Horizon (rabbit-rs)
+sail artisan rabbit-rs:demo --connection=rabbit-rs        # → consumed by Horizon (rabbit-rs supervisor)
 sail artisan rabbit-rs:demo --connection=both             # → both
 ```
 
