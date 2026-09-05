@@ -126,6 +126,12 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'sentinel' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/sentinel.log'),
+            'level' => 'info',
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
