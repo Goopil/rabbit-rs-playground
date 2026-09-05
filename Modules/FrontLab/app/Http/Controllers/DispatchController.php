@@ -33,7 +33,11 @@ class DispatchController extends Controller
 
         $dispatched = 0;
         foreach ($connections as $connection) {
-            $queue = $validated['queue'] ?? ($connection === 'redis-sentinel' ? 'default' : 'simple.default.default');
+            // redis-sentinel queues (default, high-priority, bulk) have no
+            // RabbitMQ counterpart: the topology only binds simple.default.*.
+            $queue = $connection === 'redis-sentinel'
+                ? ($validated['queue'] ?? 'default')
+                : ($validated['queue'] === 'high-priority' ? 'simple.default.high-priority' : 'simple.default.default');
             for ($i = 0; $i < $validated['count']; $i++) {
                 self::JOBS[$validated['job']]::dispatch(['id' => $i, 'source' => 'lab'])
                     ->onConnection($connection)
