@@ -78,14 +78,19 @@ export default function Dashboard() {
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6">
-                            <h3 className="text-sm font-semibold text-gray-900">Queues depth (redis)</h3>
+                            <h3 className="text-sm font-semibold text-gray-900">
+                                Queues depth (redis / rabbit)
+                            </h3>
                             <div className="mt-3 flex flex-wrap gap-3">
                                 {['default', 'high-priority', 'bulk'].map((q) => (
                                     <span
                                         key={q}
                                         className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700"
                                     >
-                                        {q}: <strong>{queues[q] ?? 0}</strong>
+                                        {q}:{' '}
+                                        <strong>{queues[q]?.redis ?? 0}</strong>
+                                        {' / '}
+                                        <strong>{queues[q]?.rabbit ?? '–'}</strong>
                                     </span>
                                 ))}
                             </div>

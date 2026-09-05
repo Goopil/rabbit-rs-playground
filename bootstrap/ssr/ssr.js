@@ -137,10 +137,10 @@ function AuthenticatedLayout({ header, children }) {
 										href: route("lab.dashboard"),
 										active: route().current("lab.*"),
 										children: "Lab"
-									}), /* @__PURE__ */ jsx(NavLink, {
-										href: route("dashboard"),
-										active: route().current("dashboard"),
-										children: "Dashboard"
+									}), /* @__PURE__ */ jsx("a", {
+										href: "/horizon/dashboard",
+										className: "inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:border-gray-300 hover:text-gray-700 focus:outline-none",
+										children: "Horizon"
 									})]
 								})]
 							}),
@@ -206,13 +206,17 @@ function AuthenticatedLayout({ header, children }) {
 					})
 				}), /* @__PURE__ */ jsxs("div", {
 					className: (showingNavigationDropdown ? "block" : "hidden") + " sm:hidden",
-					children: [/* @__PURE__ */ jsx("div", {
+					children: [/* @__PURE__ */ jsxs("div", {
 						className: "space-y-1 pb-3 pt-2",
-						children: /* @__PURE__ */ jsx(ResponsiveNavLink, {
-							href: route("dashboard"),
-							active: route().current("dashboard"),
-							children: "Dashboard"
-						})
+						children: [/* @__PURE__ */ jsx(ResponsiveNavLink, {
+							href: route("lab.dashboard"),
+							active: route().current("lab.*"),
+							children: "Lab"
+						}), /* @__PURE__ */ jsx(ResponsiveNavLink, {
+							href: "/horizon/dashboard",
+							active: false,
+							children: "Horizon"
+						})]
 					}), /* @__PURE__ */ jsxs("div", {
 						className: "border-t border-gray-200 pb-1 pt-4",
 						children: [/* @__PURE__ */ jsxs("div", {
@@ -398,7 +402,7 @@ function Dashboard() {
 							className: "p-6",
 							children: [/* @__PURE__ */ jsx("h3", {
 								className: "text-sm font-semibold text-gray-900",
-								children: "Queues depth (redis)"
+								children: "Queues depth (redis / rabbit)"
 							}), /* @__PURE__ */ jsx("div", {
 								className: "mt-3 flex flex-wrap gap-3",
 								children: [
@@ -409,8 +413,11 @@ function Dashboard() {
 									className: "rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700",
 									children: [
 										q,
-										": ",
-										/* @__PURE__ */ jsx("strong", { children: queues[q] ?? 0 })
+										":",
+										" ",
+										/* @__PURE__ */ jsx("strong", { children: queues[q]?.redis ?? 0 }),
+										" / ",
+										/* @__PURE__ */ jsx("strong", { children: queues[q]?.rabbit ?? "–" })
 									]
 								}, q))
 							})]

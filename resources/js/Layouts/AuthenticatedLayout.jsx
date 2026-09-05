@@ -30,12 +30,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Lab
                                 </NavLink>
-                                <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
+                                <a
+                                    href="/horizon/dashboard"
+                                    className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:border-gray-300 hover:text-gray-700 focus:outline-none"
                                 >
-                                    Dashboard
-                                </NavLink>
+                                    Horizon
+                                </a>
                             </div>
                         </div>
 
@@ -135,10 +135,13 @@ export default function AuthenticatedLayout({ header, children }) {
                 >
                     <div className="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
+                            href={route('lab.dashboard')}
+                            active={route().current('lab.*')}
                         >
-                            Dashboard
+                            Lab
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink href="/horizon/dashboard" active={false}>
+                            Horizon
                         </ResponsiveNavLink>
                     </div>
 

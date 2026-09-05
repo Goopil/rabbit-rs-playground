@@ -1,4 +1,4 @@
-.PHONY: up down build demo setup status horizon horizon-probes ssr-build stress load-test sentinel-watch chaos-kill-master chaos-heal
+.PHONY: up down build demo setup status horizon horizon-probes ssr-build dev stress load-test sentinel-watch chaos-kill-master chaos-heal
 
 build:
 	./vendor/bin/sail build --no-cache
@@ -44,6 +44,9 @@ horizon-probes:
 
 ssr-build:
 	./vendor/bin/sail npm run build && ./vendor/bin/sail npm run build:ssr
+
+dev:
+	./vendor/bin/sail npm run dev
 
 sentinel-watch:
 	./vendor/bin/sail exec sentinel-1 valkey-cli -p 26379 --json subscribe "+switch-master" "+failover-end" "+sdown" "+odown"

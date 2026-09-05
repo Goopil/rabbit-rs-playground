@@ -19,8 +19,10 @@ class DashboardController extends Controller
                 'pending' => app(JobRepository::class)->countPending(),
                 'failed' => app(JobRepository::class)->countFailed(),
             ],
-            'queues' => collect(['default', 'high-priority', 'bulk'])
-                ->mapWithKeys(fn ($q) => [$q => Redis::connection('default')->llen("queues:{$q}")]),
+            'queues' => collect(['default', 'high-priority', 'bulk'])->mapWithKeys(fn ($q) => [$q => [
+                'redis' => Redis::connection('default')->llen("queues:{$q}"),
+                'rabbit' => $this->rabbitDepth($q),
+            ]]),
         ];
 
         if ($request->boolean('only-stats')) {
@@ -30,5 +32,20 @@ class DashboardController extends Controller
         return inertia('FrontLab/Dashboard', [
             'stats' => $stats,
         ]);
+    }
+
+    /**
+     * AMQP queue depth (rabbit_rs pool). null when the broker is unreachable —
+     * the dashboard must not 500 because RabbitMQ is down.
+     */
+    private function rabbitDepth(string $queue): ?int
+    {
+        try {
+            return app(Illuminate\Contracts\Queue\Factory::class)
+                ->connection('rabbit-rs')
+                ->size($queue);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }
