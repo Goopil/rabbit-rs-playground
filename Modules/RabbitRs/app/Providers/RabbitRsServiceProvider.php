@@ -2,8 +2,11 @@
 
 namespace Modules\RabbitRs\Providers;
 
-use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\RabbitRs\Console\RabbitRsDemoCommand;
+use Modules\RabbitRs\Console\RabbitRsSetupTopologyCommand;
+use Modules\RabbitRs\Console\RabbitRsSetupVhostsCommand;
+use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class RabbitRsServiceProvider extends ModuleServiceProvider
 {
@@ -22,7 +25,11 @@ class RabbitRsServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        RabbitRsDemoCommand::class,
+        RabbitRsSetupTopologyCommand::class,
+        RabbitRsSetupVhostsCommand::class,
+    ];
 
     /**
      * Provider classes to register.
@@ -36,8 +43,8 @@ class RabbitRsServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     * 
-     * @param $schedule
+     *
+     * @param  $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
     // {

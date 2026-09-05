@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace Modules\RabbitRs\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -9,7 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ProcessDefaultJob implements ShouldQueue
+class SendPushNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -19,15 +19,15 @@ class ProcessDefaultJob implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info('ProcessDefaultJob', [
+        Log::info('SendPushNotification', [
             'queue' => $this->job->getQueue() ?? 'unknown',
-            'payload' => $this->payload,
+            'device_token' => $this->payload['device_token'] ?? null,
+            'title' => $this->payload['title'] ?? null,
+            'body' => $this->payload['body'] ?? null,
         ]);
 
-        
-
-        Log::info('ProcessDefaultJob completed', [
-            'id' => $this->payload['id'] ?? null,
+        Log::info('Push sent', [
+            'device_token' => $this->payload['device_token'] ?? null,
         ]);
     }
 }

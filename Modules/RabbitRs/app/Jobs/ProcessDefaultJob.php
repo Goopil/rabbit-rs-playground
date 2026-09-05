@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace Modules\RabbitRs\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -9,7 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ProcessOrderPaid implements ShouldQueue
+class ProcessDefaultJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -19,17 +19,13 @@ class ProcessOrderPaid implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info('ProcessOrderPaid', [
+        Log::info('ProcessDefaultJob', [
             'queue' => $this->job->getQueue() ?? 'unknown',
-            'order_id' => $this->payload['order_id'] ?? null,
-            'payment_method' => $this->payload['payment_method'] ?? null,
-            'amount' => $this->payload['amount'] ?? null,
+            'payload' => $this->payload,
         ]);
 
-        
-
-        Log::info('Order paid processed', [
-            'order_id' => $this->payload['order_id'] ?? null,
+        Log::info('ProcessDefaultJob completed', [
+            'id' => $this->payload['id'] ?? null,
         ]);
     }
 }

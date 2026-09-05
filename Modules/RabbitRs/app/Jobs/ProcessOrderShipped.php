@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace Modules\RabbitRs\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -9,7 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class SendSmsNotification implements ShouldQueue
+class ProcessOrderShipped implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -19,16 +19,15 @@ class SendSmsNotification implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info('SendSmsNotification', [
+        Log::info('ProcessOrderShipped', [
             'queue' => $this->job->getQueue() ?? 'unknown',
-            'phone' => $this->payload['phone'] ?? null,
-            'message' => $this->payload['message'] ?? null,
+            'order_id' => $this->payload['order_id'] ?? null,
+            'tracking_number' => $this->payload['tracking_number'] ?? null,
+            'carrier' => $this->payload['carrier'] ?? null,
         ]);
 
-        
-
-        Log::info('SMS sent', [
-            'phone' => $this->payload['phone'] ?? null,
+        Log::info('Order shipped processed', [
+            'order_id' => $this->payload['order_id'] ?? null,
         ]);
     }
 }
