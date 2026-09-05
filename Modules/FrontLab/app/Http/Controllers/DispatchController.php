@@ -6,16 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Modules\RabbitRs\Jobs\ProcessDefaultJob;
 use Modules\RabbitRs\Jobs\ProcessHighPriorityJob;
-use Modules\RabbitRs\Jobs\ProcessOrderCreated;
-use Modules\RabbitRs\Jobs\SendEmailNotification;
 
 class DispatchController extends Controller
 {
     private const JOBS = [
         'default' => ProcessDefaultJob::class,
         'high-priority' => ProcessHighPriorityJob::class,
-        'order' => ProcessOrderCreated::class,
-        'email' => SendEmailNotification::class,
     ];
 
     public function store(Request $request)
@@ -23,7 +19,7 @@ class DispatchController extends Controller
         $validated = $request->validate([
             'job' => 'required|string|in:'.implode(',', array_keys(self::JOBS)),
             'connection' => 'required|in:redis-sentinel,rabbit-rs,both',
-            'queue' => 'nullable|string|max:100',
+            'queue' => 'nullable|string|in:default,high-priority,bulk',
             'count' => 'required|integer|min:1|max:10000',
         ]);
 
@@ -31,13 +27,9 @@ class DispatchController extends Controller
             ? ['redis-sentinel', 'rabbit-rs']
             : [$validated['connection']];
 
+        $queue = $validated['queue'] ?? 'default';
         $dispatched = 0;
         foreach ($connections as $connection) {
-            // redis-sentinel queues (default, high-priority, bulk) have no
-            // RabbitMQ counterpart: the topology only binds simple.default.*.
-            $queue = $connection === 'redis-sentinel'
-                ? ($validated['queue'] ?? 'default')
-                : ($validated['queue'] === 'high-priority' ? 'simple.default.high-priority' : 'simple.default.default');
             for ($i = 0; $i < $validated['count']; $i++) {
                 self::JOBS[$validated['job']]::dispatch(['id' => $i, 'source' => 'lab'])
                     ->onConnection($connection)

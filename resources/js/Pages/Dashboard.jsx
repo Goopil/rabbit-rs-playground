@@ -6,7 +6,7 @@ import TextInput from '@/Components/TextInput';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
-const JOBS = ['default', 'high-priority', 'order', 'email'];
+const JOBS = ['default', 'high-priority'];
 const CONNECTIONS = ['redis-sentinel', 'rabbit-rs', 'both'];
 const QUEUES = ['default', 'high-priority', 'bulk'];
 

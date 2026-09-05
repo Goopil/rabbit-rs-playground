@@ -29,7 +29,7 @@ class LabDispatchTest extends TestCase
         Queue::assertPushed(ProcessDefaultJob::class, 3);
     }
 
-    public function test_rabbit_rs_maps_queues_to_topology_names(): void
+    public function test_rabbit_rs_uses_flat_queue_names(): void
     {
         Queue::fake();
         $user = User::factory()->create();
@@ -48,7 +48,15 @@ class LabDispatchTest extends TestCase
             'count' => 1,
         ]);
 
-        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'simple.default.default');
-        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'simple.default.high-priority');
+        $this->actingAs($user)->post('/lab/dispatch', [
+            'job' => 'default',
+            'connection' => 'rabbit-rs',
+            'queue' => 'bulk',
+            'count' => 1,
+        ]);
+
+        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'default');
+        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'high-priority');
+        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'bulk');
     }
 }

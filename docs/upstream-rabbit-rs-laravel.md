@@ -1,4 +1,70 @@
-# Upstream bug — goopil/rabbit-rs-laravel
+# Upstream bugs — goopil/rabbit-rs-laravel
+
+## Bug: `Horizon\RabbitMqQueue` missing `readyNow()` — Horizon supervisor crash-loop
+
+### Symptom
+
+With a Horizon supervisor consuming the `rabbit-rs` connection, the supervisor
+process dies on its first loop iteration (jobs never consumed, 0 consumers on
+all AMQP queues):
+
+```
+Error: Call to undefined method Goopil\RabbitRs\Laravel\Horizon\RabbitMqQueue::readyNow()
+  at vendor/laravel/horizon/src/AutoScaler.php:81
+```
+
+### Root cause
+
+`Supervisor::loop()` calls `autoScale()` every iteration — **regardless of the
+`balance` option** (the `balance !== 'simple'` guard lives in
+`SupervisorOptions::autoScaling()`, which `AutoScaler` never consults before
+measuring). `AutoScaler::timeToClearPerQueue()` then calls
+`readyNow($queue)` on the connection's queue instance.
+
+`readyNow()` only exists on `Laravel\Horizon\RedisQueue` (the Redis
+implementation returns `LLEN` of the queue). `Horizon\RabbitMqQueue` extends
+the base `RabbitMqQueue`, so any Horizon supervisor pointed at the connection
+crashes — `balance=auto` or `simple`, both.
+
+### Suggested fix
+
+One method, delegating to the standard queue-size contract:
+
+```php
+public function readyNow($queue = null)
+{
+    return $this->size($queue);
+}
+```
+
+(`size()` is already implemented per the `Illuminate\Contracts\Queue\Queue`
+contract — AMQP queue depth via `rabbit_rs`.)
+
+### Regression test
+
+Configure a Horizon supervisor on a rabbit-rs connection (`balance=auto` and
+`simple`), run `php artisan horizon`, and assert the supervisor stays up and
+`rabbitmqctl list_queues` shows `consumers > 0`.
+
+## Bug: `worker` key not inherited from cross-cutting defaults
+
+`RabbitMqConnector::connect()` reads `$config['worker']` from the **raw
+connection config** (config/queue.php) to pick `Horizon\RabbitMqQueue` vs
+`RabbitMqQueue` — but the cross-cutting defaults from `config/rabbit-rs.php`
+are only merged by `ConnectionCompiler::compile()` for the compiled native
+config, not for this lookup. Result: setting `RABBIT_RS_WORKER=horizon` in
+`config/rabbit-rs.php` (the documented place for cross-cutting keys) has no
+effect unless the connection itself also declares `'worker' => ...`.
+
+### Suggested fix
+
+Merge `$this->defaults` into `$config` before the `worker` lookup (or read
+`$compiled['worker']`), so all cross-cutting keys behave uniformly.
+
+### Playground workaround
+
+`config/queue.php` declares `'worker' => env('RABBIT_RS_WORKER', 'default')`
+on the connection itself.
 
 ## Bug: `publish deadline expired` on first publish after idle (long-lived workers)
 

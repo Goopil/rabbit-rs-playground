@@ -5,7 +5,6 @@ namespace Modules\RabbitRs\Providers;
 use Illuminate\Console\Scheduling\Schedule;
 use Modules\RabbitRs\Console\RabbitRsDemoCommand;
 use Modules\RabbitRs\Console\RabbitRsSetupTopologyCommand;
-use Modules\RabbitRs\Console\RabbitRsSetupVhostsCommand;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class RabbitRsServiceProvider extends ModuleServiceProvider
@@ -28,7 +27,6 @@ class RabbitRsServiceProvider extends ModuleServiceProvider
     protected array $commands = [
         RabbitRsDemoCommand::class,
         RabbitRsSetupTopologyCommand::class,
-        RabbitRsSetupVhostsCommand::class,
     ];
 
     /**

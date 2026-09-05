@@ -17,7 +17,6 @@ services:
             XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
             XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
-            SUPERVISOR_RABBIT_RS_WORKERS: '${SUPERVISOR_RABBIT_RS_WORKERS:-false}'
             SUPERVISOR_HORIZON: '${SUPERVISOR_HORIZON:-true}'
             SUPERVISOR_SSR: '${SUPERVISOR_SSR:-true}'
             SSR_PORT: '${SSR_PORT:-13715}'
@@ -66,72 +65,6 @@ services:
             - 'sail-rabbitmq-simple:/var/lib/rabbitmq'
         networks:
             - sail
-        healthcheck:
-            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-    rabbitmq-1:
-        image: rabbitmq:4.3-management
-        hostname: rabbitmq-1
-        ports:
-            - '${RABBITMQ_CLUSTER_AMQP_PORT:-5673}:5672'
-            - '${RABBITMQ_CLUSTER_MGMT_PORT:-15673}:15672'
-        environment:
-            RABBITMQ_ERLANG_COOKIE: 'rabbit-rs-cluster-cookie'
-            RABBITMQ_DEFAULT_USER: '${RABBITMQ_CLUSTER_USER:-guest}'
-            RABBITMQ_DEFAULT_PASS: '${RABBITMQ_CLUSTER_PASS:-guest}'
-            RABBITMQ_DEFAULT_VHOST: '${RABBITMQ_CLUSTER_VHOST:-/}'
-        volumes:
-            - 'sail-rabbitmq-1:/var/lib/rabbitmq'
-            - './docker/rabbitmq/cluster/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro'
-            - './docker/rabbitmq/cluster/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro'
-        networks:
-            - sail
-        healthcheck:
-            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-    rabbitmq-2:
-        image: rabbitmq:4.3-management
-        hostname: rabbitmq-2
-        environment:
-            RABBITMQ_ERLANG_COOKIE: 'rabbit-rs-cluster-cookie'
-            RABBITMQ_DEFAULT_USER: '${RABBITMQ_CLUSTER_USER:-guest}'
-            RABBITMQ_DEFAULT_PASS: '${RABBITMQ_CLUSTER_PASS:-guest}'
-            RABBITMQ_DEFAULT_VHOST: '${RABBITMQ_CLUSTER_VHOST:-/}'
-        volumes:
-            - 'sail-rabbitmq-2:/var/lib/rabbitmq'
-            - './docker/rabbitmq/cluster/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro'
-            - './docker/rabbitmq/cluster/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro'
-        networks:
-            - sail
-        depends_on:
-            rabbitmq-1:
-                condition: service_healthy
-        healthcheck:
-            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-    rabbitmq-3:
-        image: rabbitmq:4.3-management
-        hostname: rabbitmq-3
-        environment:
-            RABBITMQ_ERLANG_COOKIE: 'rabbit-rs-cluster-cookie'
-            RABBITMQ_DEFAULT_USER: '${RABBITMQ_CLUSTER_USER:-guest}'
-            RABBITMQ_DEFAULT_PASS: '${RABBITMQ_CLUSTER_PASS:-guest}'
-            RABBITMQ_DEFAULT_VHOST: '${RABBITMQ_CLUSTER_VHOST:-/}'
-        volumes:
-            - 'sail-rabbitmq-3:/var/lib/rabbitmq'
-            - './docker/rabbitmq/cluster/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro'
-            - './docker/rabbitmq/cluster/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro'
-        networks:
-            - sail
-        depends_on:
-            rabbitmq-1:
-                condition: service_healthy
         healthcheck:
             test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
             interval: 10s
@@ -234,12 +167,6 @@ volumes:
     sail-mysql:
         driver: local
     sail-rabbitmq-simple:
-        driver: local
-    sail-rabbitmq-1:
-        driver: local
-    sail-rabbitmq-2:
-        driver: local
-    sail-rabbitmq-3:
         driver: local
     sail-valkey-master:
         driver: local

@@ -9,9 +9,8 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 | Program | Role |
 |---------|------|
 | `php` | Octane/Swoole HTTP server (port 80) |
-| `horizon` | Queue workers for `redis-sentinel` connection (`default`, `high-priority`, `bulk`) |
+| `horizon` | Queue workers for **all** queues — `redis-sentinel` (`default`, `high-priority`, `bulk`) and `rabbit-rs` (same names), via `RABBIT_RS_WORKER=horizon` |
 | `ssr` | Node ClusterKit orchestrator running the Inertia SSR server (`POST /render` on 127.0.0.1:13715) |
-| `rabbit-rs-*` | RabbitMQ workers — **off by default** (`SUPERVISOR_RABBIT_RS_WORKERS=false`), re-enable for rabbit-rs consumption |
 
 ### Valkey HA set (compose)
 
@@ -19,7 +18,7 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 
 ### RabbitMQ infra
 
-Two setups (single-node + 3-node quorum cluster), 3 vhosts, 32 queues — untouched by v2. RabbitMQ workers are disabled: dispatching to `rabbit-rs` accumulates messages in RabbitMQ until you re-enable workers or run `rabbit-rs:work`.
+Single node (`rabbitmq-simple`), one vhost, one exchange (`laravel.jobs`), 3 quorum queues (`default`, `high-priority`, `bulk`) — **flat queue names, identical on both transports**. Horizon consumes the `rabbit-rs` connection: rabbit-rs jobs appear in the Horizon dashboard next to Redis jobs.
 
 ## Modules
 
@@ -38,7 +37,7 @@ make build
 # 2. Start all containers (Laravel + MySQL + RabbitMQ + Valkey HA)
 make up
 
-# 3. Create RabbitMQ vhosts and topology
+# 3. Create the RabbitMQ topology
 make setup
 
 # 4. Migrate + seed (login: test@example.com / password)
@@ -59,13 +58,12 @@ sail artisan migrate --force && sail artisan db:seed --force
 | `make ssr-build` | Client + SSR bundles |
 | `make sentinel-watch` | Subscribe to sentinel events (`+switch-master`, `+sdown`, `+odown`, ...) |
 | `make chaos-kill-master` / `make chaos-heal` | Stop/start `valkey-master` (failover drill) |
-| `make status` | rabbit-rs pool status |
 
 ## Dual Dispatch
 
 ```bash
-sail artisan rabbit-rs:demo --connection=redis-sentinel   # → Horizon processes immediately
-sail artisan rabbit-rs:demo --connection=rabbit-rs        # → messages accumulate in RabbitMQ
+sail artisan rabbit-rs:demo --connection=redis-sentinel   # → consumed by Horizon (redis-sentinel)
+sail artisan rabbit-rs:demo --connection=rabbit-rs        # → consumed by Horizon (rabbit-rs)
 sail artisan rabbit-rs:demo --connection=both             # → both
 ```
 
@@ -88,16 +86,15 @@ make chaos-heal        # old master rejoins as replica
 |------|-----|-------------|
 | Lab dashboard | http://localhost/lab | test@example.com / password |
 | Horizon | http://localhost/horizon | — |
-| RabbitMQ simple | http://localhost:15672 | guest / guest |
-| RabbitMQ cluster | http://localhost:15673 | guest / guest |
+| RabbitMQ | http://localhost:15672 | guest / guest |
 
 ## Configuration
 
-- `config/rabbit-rs.php` — rabbit-rs brokers/topology (0.1.0 schema, untouched)
+- `config/rabbit-rs.php` — rabbit-rs cross-cutting defaults (0.1.0 schema)
 - `config/database.php` — sentinel-backed `default` + `cache` redis connections
-- `config/horizon.php` — supervisors on `redis-sentinel`
-- `config/queue.php` — `redis-sentinel` connection (`phpredis-sentinel` driver)
-- `docker/8.5/supervisord.conf` — php / horizon / ssr / rabbit-rs programs
+- `config/horizon.php` — supervisors on `redis-sentinel` + `rabbit-rs`
+- `config/queue.php` — `redis-sentinel` (`phpredis-sentinel` driver) + `rabbit-rs` connections
+- `docker/8.5/supervisord.conf` — php / horizon / ssr programs
 - `compose.yaml` — RabbitMQ, MySQL, Valkey HA set
 - `.env` — `QUEUE_CONNECTION=redis-sentinel`, `SUPERVISOR_*` gates, `SSR_PORT`, `INERTIA_SSR_*`
 
@@ -108,7 +105,6 @@ make chaos-heal        # old master rejoins as replica
 | Horizon not connecting | Check sentinels: `sail exec sentinel-1 valkey-cli -p 26379 sentinel get-master-addr-by-name mymaster` |
 | SSR down | Pages fall back to client-side rendering; check `sail exec laravel.test supervisorctl status ssr` |
 | Extension not loaded | Rebuild: `make build && make up` |
-| Cluster not forming | `sail down -v && sail up -d` (clears stale Erlang cookies) |
-| Publish fails (unroutable) | `make setup-topology` |
+| Publish fails (unroutable) | `make setup` |
 | Composer rejects rabbit-rs-laravel | Must run inside Sail (`ext-rabbit_rs` only exists in the container); use `--ignore-platform-req=ext-rabbit_rs` when composer's platform check desyncs |
 | 500 on first request of a fresh worker | Warm-up listener in `AppServiceProvider` resolves sentinel connections at Octane worker start (vendor lib fix tracked in `docs/upstream-laravel-redis-sentinel.md`) |

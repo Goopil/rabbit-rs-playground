@@ -100,339 +100,44 @@ return [
 
         /*
         | Rabbit RS — connection-first schema (rabbit-rs-laravel 0.1.0):
-        | one connection = one broker = one exchange, named after the old
-        | config's brokers. The old per-queue routes (simple.*.*,
-        | simple.all.*, cluster.*) are preserved as the connection's
-        | exchange + routing_key ({queue} = Laravel queue name) and its
-        | subscriptions; publishing queue "simple.all.orders.created" through
-        | the "simple.orders" connection lands on the same AMQP queue as
-        | before. Cross-cutting keys (tls, delay, dead_letter, queue_type,
-        | safety, ...) are inherited from config/rabbit-rs.php.
+        | one connection = one broker = one exchange. Queue names are flat
+        | and identical on both transports (redis-sentinel and rabbit-rs):
+        | default, high-priority, bulk. Cross-cutting keys (tls, delay,
+        | dead_letter, queue_type, safety, ...) come from config/rabbit-rs.php.
         */
         'rabbit-rs' => [
             'driver' => 'rabbit-rs',
-            'queue' => env('RABBIT_RS_QUEUE', 'simple.default.default'),
-            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
-            'vhost' => '/default',
-            'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
-            'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
+            'queue' => env('RABBIT_RS_QUEUE', 'default'),
+            // NB: worker is read from the raw connection config by the
+            // connector (defaults from config/rabbit-rs.php are NOT merged
+            // before this lookup) — it must be declared here.
+            'worker' => env('RABBIT_RS_WORKER', 'default'),
+            'hosts' => env('RABBIT_RS_HOSTS', 'rabbitmq-simple:5672'),
+            'vhost' => env('RABBIT_RS_VHOST', '/'),
+            'username' => env('RABBIT_RS_USER', 'guest'),
+            'password' => env('RABBIT_RS_PASS', 'guest'),
             'exchange' => 'laravel.jobs',
             'routing_key' => '{queue}',
             'subscriptions' => [
                 'default' => [
-                    'queue' => 'simple.default.default',
+                    'queue' => 'default',
                     'weight' => 1,
                     'priority_class' => 0,
                     'prefetch' => 16,
                     'starvation_after' => 30,
                 ],
                 'high-priority' => [
-                    'queue' => 'simple.default.high-priority',
+                    'queue' => 'high-priority',
                     'weight' => 4,
                     'priority_class' => -1,
                     'prefetch' => 16,
                     'starvation_after' => 15,
                 ],
-            ],
-        ],
-
-        'simple-default' => [
-            'driver' => 'rabbit-rs',
-            'queue' => 'simple.default.default',
-            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
-            'vhost' => '/default',
-            'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
-            'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
-            'exchange' => 'laravel.jobs',
-            'routing_key' => '{queue}',
-            'subscriptions' => [
-                'default' => [
-                    'queue' => 'simple.default.default',
+                'bulk' => [
+                    'queue' => 'bulk',
                     'weight' => 1,
                     'priority_class' => 0,
                     'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'high-priority' => [
-                    'queue' => 'simple.default.high-priority',
-                    'weight' => 4,
-                    'priority_class' => -1,
-                    'prefetch' => 16,
-                    'starvation_after' => 15,
-                ],
-                'all-default' => [
-                    'queue' => 'simple.all.default',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-high-priority' => [
-                    'queue' => 'simple.all.high-priority',
-                    'weight' => 4,
-                    'priority_class' => -1,
-                    'prefetch' => 16,
-                    'starvation_after' => 15,
-                ],
-            ],
-        ],
-
-        'simple-orders' => [
-            'driver' => 'rabbit-rs',
-            'queue' => 'simple.orders.created',
-            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
-            'vhost' => '/orders',
-            'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
-            'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
-            'exchange' => 'laravel.orders',
-            'routing_key' => '{queue}',
-            'subscriptions' => [
-                'created' => [
-                    'queue' => 'simple.orders.created',
-                    'weight' => 2,
-                    'priority_class' => -1,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'paid' => [
-                    'queue' => 'simple.orders.paid',
-                    'weight' => 2,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'shipped' => [
-                    'queue' => 'simple.orders.shipped',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-created' => [
-                    'queue' => 'simple.all.orders.created',
-                    'weight' => 2,
-                    'priority_class' => -1,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-paid' => [
-                    'queue' => 'simple.all.orders.paid',
-                    'weight' => 2,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-shipped' => [
-                    'queue' => 'simple.all.orders.shipped',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-            ],
-        ],
-
-        'simple-notifications' => [
-            'driver' => 'rabbit-rs',
-            'queue' => 'simple.notifications.email',
-            'hosts' => env('RABBIT_RS_SIMPLE_HOSTS', 'rabbitmq-simple:5672'),
-            'vhost' => '/notifications',
-            'username' => env('RABBIT_RS_SIMPLE_USER', 'guest'),
-            'password' => env('RABBIT_RS_SIMPLE_PASS', 'guest'),
-            'exchange' => 'laravel.notifications',
-            'routing_key' => '{queue}',
-            'subscriptions' => [
-                'email' => [
-                    'queue' => 'simple.notifications.email',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'sms' => [
-                    'queue' => 'simple.notifications.sms',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'push' => [
-                    'queue' => 'simple.notifications.push',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-email' => [
-                    'queue' => 'simple.all.notifications.email',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-sms' => [
-                    'queue' => 'simple.all.notifications.sms',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-                'all-push' => [
-                    'queue' => 'simple.all.notifications.push',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 16,
-                    'starvation_after' => 30,
-                ],
-            ],
-        ],
-
-        'cluster-default' => [
-            'driver' => 'rabbit-rs',
-            'queue' => 'cluster.default.default',
-            'hosts' => env('RABBIT_RS_CLUSTER_HOSTS', 'rabbitmq-1:5672,rabbitmq-2:5672,rabbitmq-3:5672'),
-            'vhost' => '/default',
-            'username' => env('RABBIT_RS_CLUSTER_USER', 'guest'),
-            'password' => env('RABBIT_RS_CLUSTER_PASS', 'guest'),
-            'exchange' => 'laravel.jobs',
-            'routing_key' => '{queue}',
-            'subscriptions' => [
-                'default' => [
-                    'queue' => 'cluster.default.default',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'high-priority' => [
-                    'queue' => 'cluster.default.high-priority',
-                    'weight' => 4,
-                    'priority_class' => -1,
-                    'prefetch' => 32,
-                    'starvation_after' => 15,
-                ],
-                'all-default' => [
-                    'queue' => 'cluster.all.default',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-high-priority' => [
-                    'queue' => 'cluster.all.high-priority',
-                    'weight' => 4,
-                    'priority_class' => -1,
-                    'prefetch' => 32,
-                    'starvation_after' => 15,
-                ],
-            ],
-        ],
-
-        'cluster-orders' => [
-            'driver' => 'rabbit-rs',
-            'queue' => 'cluster.orders.created',
-            'hosts' => env('RABBIT_RS_CLUSTER_HOSTS', 'rabbitmq-1:5672,rabbitmq-2:5672,rabbitmq-3:5672'),
-            'vhost' => '/orders',
-            'username' => env('RABBIT_RS_CLUSTER_USER', 'guest'),
-            'password' => env('RABBIT_RS_CLUSTER_PASS', 'guest'),
-            'exchange' => 'laravel.orders',
-            'routing_key' => '{queue}',
-            'subscriptions' => [
-                'created' => [
-                    'queue' => 'cluster.orders.created',
-                    'weight' => 2,
-                    'priority_class' => -1,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'paid' => [
-                    'queue' => 'cluster.orders.paid',
-                    'weight' => 2,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'shipped' => [
-                    'queue' => 'cluster.orders.shipped',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-created' => [
-                    'queue' => 'cluster.all.orders.created',
-                    'weight' => 2,
-                    'priority_class' => -1,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-paid' => [
-                    'queue' => 'cluster.all.orders.paid',
-                    'weight' => 2,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-shipped' => [
-                    'queue' => 'cluster.all.orders.shipped',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-            ],
-        ],
-
-        'cluster-notifications' => [
-            'driver' => 'rabbit-rs',
-            'queue' => 'cluster.notifications.email',
-            'hosts' => env('RABBIT_RS_CLUSTER_HOSTS', 'rabbitmq-1:5672,rabbitmq-2:5672,rabbitmq-3:5672'),
-            'vhost' => '/notifications',
-            'username' => env('RABBIT_RS_CLUSTER_USER', 'guest'),
-            'password' => env('RABBIT_RS_CLUSTER_PASS', 'guest'),
-            'exchange' => 'laravel.notifications',
-            'routing_key' => '{queue}',
-            'subscriptions' => [
-                'email' => [
-                    'queue' => 'cluster.notifications.email',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'sms' => [
-                    'queue' => 'cluster.notifications.sms',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'push' => [
-                    'queue' => 'cluster.notifications.push',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-email' => [
-                    'queue' => 'cluster.all.notifications.email',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-sms' => [
-                    'queue' => 'cluster.all.notifications.sms',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
-                    'starvation_after' => 30,
-                ],
-                'all-push' => [
-                    'queue' => 'cluster.all.notifications.push',
-                    'weight' => 1,
-                    'priority_class' => 0,
-                    'prefetch' => 32,
                     'starvation_after' => 30,
                 ],
             ],

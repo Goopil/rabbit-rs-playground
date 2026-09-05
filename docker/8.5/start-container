@@ -15,7 +15,6 @@ fi
 
 chmod -R ugo+rw /.composer
 
-export SUPERVISOR_RABBIT_RS_WORKERS=${SUPERVISOR_RABBIT_RS_WORKERS:-false}
 export SUPERVISOR_HORIZON=${SUPERVISOR_HORIZON:-true}
 
 if [ $# -gt 0 ]; then

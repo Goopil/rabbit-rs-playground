@@ -1,6 +1,6 @@
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Head, Link, createInertiaApp, useForm, usePage } from "@inertiajs/react";
+import { Head, Link, createInertiaApp, router, useForm, usePage } from "@inertiajs/react";
 import { Dialog, DialogPanel, Transition, TransitionChild } from "@headlessui/react";
 import ReactDOMServer from "react-dom/server";
 import { route as route$1 } from "ziggy-js";
@@ -637,13 +637,17 @@ function AuthenticatedLayout({ header, children }) {
 										href: "/",
 										children: /* @__PURE__ */ jsx(ApplicationLogo, { className: "block h-9 w-auto fill-current text-gray-800" })
 									})
-								}), /* @__PURE__ */ jsx("div", {
+								}), /* @__PURE__ */ jsxs("div", {
 									className: "hidden space-x-8 sm:-my-px sm:ms-10 sm:flex",
-									children: /* @__PURE__ */ jsx(NavLink, {
+									children: [/* @__PURE__ */ jsx(NavLink, {
+										href: route("lab.dashboard"),
+										active: route().current("lab.*"),
+										children: "Lab"
+									}), /* @__PURE__ */ jsx(NavLink, {
 										href: route("dashboard"),
 										active: route().current("dashboard"),
 										children: "Dashboard"
-									})
+									})]
 								})]
 							}),
 							/* @__PURE__ */ jsx("div", {
@@ -755,23 +759,208 @@ function AuthenticatedLayout({ header, children }) {
 //#endregion
 //#region resources/js/Pages/Dashboard.jsx
 var Dashboard_exports = /* @__PURE__ */ __exportAll({ default: () => Dashboard });
+var JOBS = ["default", "high-priority"];
+var CONNECTIONS = [
+	"redis-sentinel",
+	"rabbit-rs",
+	"both"
+];
+var QUEUES = [
+	"default",
+	"high-priority",
+	"bulk"
+];
+function StatCard({ label, value, accent = "" }) {
+	return /* @__PURE__ */ jsx("div", {
+		className: "overflow-hidden bg-white shadow-sm sm:rounded-lg",
+		children: /* @__PURE__ */ jsxs("div", {
+			className: "p-6",
+			children: [/* @__PURE__ */ jsx("p", {
+				className: "text-xs font-medium uppercase tracking-wide text-gray-500",
+				children: label
+			}), /* @__PURE__ */ jsx("p", {
+				className: `mt-2 text-3xl font-semibold ${accent || "text-gray-900"}`,
+				children: value
+			})]
+		})
+	});
+}
 function Dashboard() {
+	const { stats, success } = usePage().props;
+	const [form, setForm] = useState({
+		job: "default",
+		connection: "redis-sentinel",
+		queue: "default",
+		count: 10
+	});
+	const [processing, setProcessing] = useState(false);
+	const [error, setError] = useState("");
+	useEffect(() => {
+		const id = setInterval(() => {
+			router.reload({ only: ["stats"] });
+		}, 3e3);
+		return () => clearInterval(id);
+	}, []);
+	const dispatch = (e) => {
+		e.preventDefault();
+		setError("");
+		setProcessing(true);
+		router.post(route("lab.dispatch"), form, {
+			onFinish: () => setProcessing(false),
+			onError: () => setError("Dispatch failed.")
+		});
+	};
+	const horizon = stats?.horizon ?? {
+		masters: [],
+		recent: 0,
+		pending: 0,
+		failed: 0
+	};
+	const queues = stats?.queues ?? {};
 	return /* @__PURE__ */ jsxs(AuthenticatedLayout, {
 		header: /* @__PURE__ */ jsx("h2", {
 			className: "text-xl font-semibold leading-tight text-gray-800",
-			children: "Dashboard"
+			children: "Queue Lab"
 		}),
-		children: [/* @__PURE__ */ jsx(Head, { title: "Dashboard" }), /* @__PURE__ */ jsx("div", {
+		children: [/* @__PURE__ */ jsx(Head, { title: "Lab" }), /* @__PURE__ */ jsx("div", {
 			className: "py-12",
-			children: /* @__PURE__ */ jsx("div", {
-				className: "mx-auto max-w-7xl sm:px-6 lg:px-8",
-				children: /* @__PURE__ */ jsx("div", {
-					className: "overflow-hidden bg-white shadow-sm sm:rounded-lg",
-					children: /* @__PURE__ */ jsx("div", {
-						className: "p-6 text-gray-900",
-						children: "You're logged in!"
+			children: /* @__PURE__ */ jsxs("div", {
+				className: "mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8",
+				children: [
+					success && /* @__PURE__ */ jsx("div", {
+						className: "rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700",
+						children: success
+					}),
+					/* @__PURE__ */ jsxs("div", {
+						className: "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4",
+						children: [
+							/* @__PURE__ */ jsx(StatCard, {
+								label: "Pending",
+								value: horizon.pending,
+								accent: "text-amber-600"
+							}),
+							/* @__PURE__ */ jsx(StatCard, {
+								label: "Recent",
+								value: horizon.recent
+							}),
+							/* @__PURE__ */ jsx(StatCard, {
+								label: "Failed",
+								value: horizon.failed,
+								accent: "text-rose-600"
+							}),
+							/* @__PURE__ */ jsx(StatCard, {
+								label: "Masters",
+								value: Array.isArray(horizon.masters) ? horizon.masters.length : 0,
+								accent: "text-emerald-600"
+							})
+						]
+					}),
+					/* @__PURE__ */ jsx("div", {
+						className: "overflow-hidden bg-white shadow-sm sm:rounded-lg",
+						children: /* @__PURE__ */ jsxs("div", {
+							className: "p-6",
+							children: [/* @__PURE__ */ jsx("h3", {
+								className: "text-sm font-semibold text-gray-900",
+								children: "Queues depth (redis)"
+							}), /* @__PURE__ */ jsx("div", {
+								className: "mt-3 flex flex-wrap gap-3",
+								children: [
+									"default",
+									"high-priority",
+									"bulk"
+								].map((q) => /* @__PURE__ */ jsxs("span", {
+									className: "rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700",
+									children: [
+										q,
+										": ",
+										/* @__PURE__ */ jsx("strong", { children: queues[q] ?? 0 })
+									]
+								}, q))
+							})]
+						})
+					}),
+					/* @__PURE__ */ jsxs("form", {
+						onSubmit: dispatch,
+						className: "overflow-hidden bg-white shadow-sm sm:rounded-lg",
+						children: [/* @__PURE__ */ jsxs("div", {
+							className: "grid grid-cols-1 gap-4 p-6 sm:grid-cols-4",
+							children: [
+								/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx(InputLabel, {
+									htmlFor: "job",
+									value: "Job"
+								}), /* @__PURE__ */ jsx("select", {
+									id: "job",
+									className: "mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500",
+									value: form.job,
+									onChange: (e) => setForm({
+										...form,
+										job: e.target.value
+									}),
+									children: JOBS.map((j) => /* @__PURE__ */ jsx("option", {
+										value: j,
+										children: j
+									}, j))
+								})] }),
+								/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx(InputLabel, {
+									htmlFor: "connection",
+									value: "Connection"
+								}), /* @__PURE__ */ jsx("select", {
+									id: "connection",
+									className: "mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500",
+									value: form.connection,
+									onChange: (e) => setForm({
+										...form,
+										connection: e.target.value
+									}),
+									children: CONNECTIONS.map((c) => /* @__PURE__ */ jsx("option", {
+										value: c,
+										children: c
+									}, c))
+								})] }),
+								/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx(InputLabel, {
+									htmlFor: "queue",
+									value: "Queue"
+								}), /* @__PURE__ */ jsx("select", {
+									id: "queue",
+									className: "mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500",
+									value: form.queue,
+									onChange: (e) => setForm({
+										...form,
+										queue: e.target.value
+									}),
+									children: QUEUES.map((q) => /* @__PURE__ */ jsx("option", {
+										value: q,
+										children: q
+									}, q))
+								})] }),
+								/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx(InputLabel, {
+									htmlFor: "count",
+									value: "Count"
+								}), /* @__PURE__ */ jsx(TextInput_default, {
+									id: "count",
+									type: "number",
+									min: "1",
+									max: "10000",
+									className: "mt-1 block w-full",
+									value: form.count,
+									onChange: (e) => setForm({
+										...form,
+										count: e.target.value
+									})
+								})] })
+							]
+						}), /* @__PURE__ */ jsxs("div", {
+							className: "flex items-center gap-3 border-t border-gray-200 px-6 py-4",
+							children: [/* @__PURE__ */ jsx(PrimaryButton, {
+								disabled: processing,
+								children: "Dispatch"
+							}), /* @__PURE__ */ jsx(InputError, {
+								message: error,
+								className: "ms-2"
+							})]
+						})]
 					})
-				})
+				]
 			})
 		})]
 	});

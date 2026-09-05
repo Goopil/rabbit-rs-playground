@@ -9,69 +9,20 @@ class RabbitRsSetupTopologyCommand extends Command
 {
     protected $signature = 'rabbit-rs:setup-topology';
 
-    protected $description = 'Create RabbitMQ exchanges, queues, and bindings on both simple and cluster setups';
+    protected $description = 'Create the RabbitMQ exchange, queues, and bindings';
 
-    private const BROKERS = [
-        'simple' => [
-            'host' => 'rabbitmq-simple',
-            'port' => 15672,
-            'user' => 'guest',
-            'pass' => 'guest',
-        ],
-        'cluster' => [
-            'host' => 'rabbitmq-1',
-            'port' => 15672,
-            'user' => 'guest',
-            'pass' => 'guest',
-        ],
+    private const BROKER = [
+        'host' => 'rabbitmq-simple',
+        'port' => 15672,
+        'user' => 'guest',
+        'pass' => 'guest',
     ];
 
-    private const VHOST_EXCHANGES = [
-        '/default' => 'laravel.jobs',
-        '/orders' => 'laravel.orders',
-        '/notifications' => 'laravel.notifications',
-    ];
+    private const VHOST = '/';
 
-    private const VHOST_QUEUES = [
-        '/default' => [
-            'simple.default.default',
-            'simple.default.high-priority',
-            'cluster.default.default',
-            'cluster.default.high-priority',
-            'simple.all.default',
-            'simple.all.high-priority',
-            'cluster.all.default',
-            'cluster.all.high-priority',
-        ],
-        '/orders' => [
-            'simple.orders.created',
-            'simple.orders.paid',
-            'simple.orders.shipped',
-            'cluster.orders.created',
-            'cluster.orders.paid',
-            'cluster.orders.shipped',
-            'simple.all.orders.created',
-            'simple.all.orders.paid',
-            'simple.all.orders.shipped',
-            'cluster.all.orders.created',
-            'cluster.all.orders.paid',
-            'cluster.all.orders.shipped',
-        ],
-        '/notifications' => [
-            'simple.notifications.email',
-            'simple.notifications.sms',
-            'simple.notifications.push',
-            'cluster.notifications.email',
-            'cluster.notifications.sms',
-            'cluster.notifications.push',
-            'simple.all.notifications.email',
-            'simple.all.notifications.sms',
-            'simple.all.notifications.push',
-            'cluster.all.notifications.email',
-            'cluster.all.notifications.sms',
-            'cluster.all.notifications.push',
-        ],
-    ];
+    private const EXCHANGE = 'laravel.jobs';
+
+    private const QUEUES = ['default', 'high-priority', 'bulk'];
 
     private const DEAD_LETTER_EXCHANGE = 'dead-letters';
 
@@ -79,40 +30,36 @@ class RabbitRsSetupTopologyCommand extends Command
 
     public function handle(): int
     {
-        foreach (self::BROKERS as $name => $config) {
-            $this->info("Setting up topology on {$name} broker ({$config['host']})...");
+        $config = self::BROKER;
+        $this->info("Setting up topology on {$config['host']}...");
 
-            $base = "http://{$config['host']}:{$config['port']}/api";
-            $auth = [$config['user'], $config['pass']];
+        $base = "http://{$config['host']}:{$config['port']}/api";
+        $auth = [$config['user'], $config['pass']];
+        $vhost = urlencode(self::VHOST);
 
-            foreach (self::VHOST_EXCHANGES as $vhost => $exchange) {
-                $encoded = urlencode($vhost);
+        if (! $this->createExchange($base, $auth, $vhost, self::EXCHANGE)) {
+            return 1;
+        }
 
-                if (! $this->createExchange($base, $auth, $encoded, $exchange)) {
-                    return 1;
-                }
+        if (! $this->createExchange($base, $auth, $vhost, self::DEAD_LETTER_EXCHANGE)) {
+            return 1;
+        }
 
-                if (! $this->createExchange($base, $auth, $encoded, self::DEAD_LETTER_EXCHANGE)) {
-                    return 1;
-                }
+        if (! $this->createDeadLetterQueue($base, $auth, $vhost)) {
+            return 1;
+        }
 
-                if (! $this->createDeadLetterQueue($base, $auth, $encoded)) {
-                    return 1;
-                }
+        if (! $this->bindDeadLetterQueue($base, $auth, $vhost)) {
+            return 1;
+        }
 
-                if (! $this->bindDeadLetterQueue($base, $auth, $encoded)) {
-                    return 1;
-                }
+        foreach (self::QUEUES as $queue) {
+            if (! $this->createQuorumQueue($base, $auth, $vhost, $queue)) {
+                return 1;
+            }
 
-                foreach (self::VHOST_QUEUES[$vhost] as $queue) {
-                    if (! $this->createQuorumQueue($base, $auth, $encoded, $queue)) {
-                        return 1;
-                    }
-
-                    if (! $this->bindQueue($base, $auth, $encoded, $queue, $exchange)) {
-                        return 1;
-                    }
-                }
+            if (! $this->bindQueue($base, $auth, $vhost, $queue, self::EXCHANGE)) {
+                return 1;
             }
         }
 

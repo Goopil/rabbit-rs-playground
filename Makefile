@@ -1,4 +1,4 @@
-.PHONY: up down build demo setup setup-vhosts setup-topology status horizon horizon-probes ssr-build stress sentinel-watch chaos-kill-master chaos-heal
+.PHONY: up down build demo setup status horizon horizon-probes ssr-build stress sentinel-watch chaos-kill-master chaos-heal
 
 build:
 	./vendor/bin/sail build --no-cache
@@ -9,12 +9,7 @@ up:
 down:
 	./vendor/bin/sail down
 
-setup: setup-vhosts setup-topology
-
-setup-vhosts:
-	./vendor/bin/sail artisan rabbit-rs:setup-vhosts
-
-setup-topology:
+setup:
 	./vendor/bin/sail artisan rabbit-rs:setup-topology
 
 demo:
@@ -28,9 +23,6 @@ demo-redis:
 
 stress:
 	./vendor/bin/sail artisan queue-lab:stress --count=100 --sleep-ms=5
-
-status:
-	./vendor/bin/sail artisan rabbit-rs:status
 
 horizon:
 	./vendor/bin/sail artisan horizon:status

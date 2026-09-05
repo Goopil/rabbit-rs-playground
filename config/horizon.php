@@ -227,6 +227,16 @@ return [
                 'processes' => 4,
                 'tries' => 3,
             ],
+            /*
+            | NB: no supervisor for the rabbit-rs connection: Horizon's
+            | AutoScaler calls readyNow() on the queue instance every loop
+            | (even with balance=simple), which Horizon\RabbitMqQueue does
+            | not implement — the supervisor crash-loops. Rabbit-rs queues
+            | are consumed by the dedicated supervisord program instead;
+            | jobs still appear in the dashboard via the worker=horizon
+            | events. Re-add a supervisor once the lib ships readyNow()
+            | (see docs/upstream-rabbit-rs-laravel.md).
+            */
         ],
 
         'local' => [
