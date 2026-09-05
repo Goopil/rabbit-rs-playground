@@ -81,7 +81,11 @@ class RabbitRsDemoCommand extends Command
                                 $job->delay(now()->addSeconds(10));
                             }
 
-                            $job->onQueue($queueName);
+                            // 0.1.0 is connection-first: pick the connection
+                            // named after the broker owning this vhost (dot
+                            // names are illegal in connection keys), the
+                            // queue name itself is the routing key ({queue}).
+                            $job->onConnection("{$s}-{$vhost}")->onQueue($queueName);
                             $dispatched++;
                             $progressBar->advance();
                         }

@@ -68,10 +68,10 @@ status:
 	./vendor/bin/sail artisan rabbit-rs:status
 
 workers-status:
-	./vendor/bin/sail exec supervisorctl status
+	./vendor/bin/sail exec laravel.test supervisorctl status
 
 workers-stop:
-	./vendor/bin/sail exec supervisorctl stop rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all rabbit-rs-cluster-all
+	./vendor/bin/sail exec laravel.test supervisorctl stop rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all-default rabbit-rs-simple-all-orders rabbit-rs-simple-all-notifications rabbit-rs-cluster-all-default rabbit-rs-cluster-all-orders rabbit-rs-cluster-all-notifications
 
 workers-restart:
-	./vendor/bin/sail exec supervisorctl restart rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all rabbit-rs-cluster-all
+	./vendor/bin/sail exec laravel.test supervisorctl restart rabbit-rs-simple-single rabbit-rs-cluster-single rabbit-rs-simple-all-default rabbit-rs-simple-all-orders rabbit-rs-simple-all-notifications rabbit-rs-cluster-all-default rabbit-rs-cluster-all-orders rabbit-rs-cluster-all-notifications
