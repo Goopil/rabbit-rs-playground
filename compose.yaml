@@ -19,6 +19,8 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
             SUPERVISOR_RABBIT_RS_WORKERS: '${SUPERVISOR_RABBIT_RS_WORKERS:-false}'
             SUPERVISOR_HORIZON: '${SUPERVISOR_HORIZON:-true}'
+            SUPERVISOR_SSR: '${SUPERVISOR_SSR:-true}'
+            SSR_PORT: '${SSR_PORT:-13715}'
         volumes:
             - '.:/var/www/html'
         networks:

@@ -1,0 +1,21 @@
+import ReactDOMServer from 'react-dom/server';
+import { createInertiaApp } from '@inertiajs/react';
+import { route } from 'ziggy-js';
+
+export default function render(page) {
+    return createInertiaApp({
+        page,
+        render: ReactDOMServer.renderToString,
+        title: (title) => `${title} - ${import.meta.env.VITE_APP_NAME || 'Laravel'}`,
+        resolve: (name) => {
+            const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
+            return pages[`./Pages/${name}.jsx`];
+        },
+        setup: ({ App, props }) => {
+            global.route = (name, params, absolute) =>
+                route(name, params, absolute, page.props.ziggy);
+
+            return <App {...props} />;
+        },
+    });
+}

@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "build:ssr": "vite build --ssr",
         "dev": "vite"
     },
     "devDependencies": {
@@ -23,5 +24,9 @@
     },
     "optionalDependencies": {
         "@laravel/multiplex": "^0.4.1"
+    },
+    "dependencies": {
+        "@goopil/clusterkit": "^1.2.6",
+        "ziggy-js": "^2.6.4"
     }
 }
