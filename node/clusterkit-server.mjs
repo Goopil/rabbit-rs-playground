@@ -18,7 +18,9 @@ const orchestrator = new Orchestrator({
     health: { heartbeatMs: Number(process.env.SSR_HEARTBEAT_MS) || 10000 },
 });
 
-const sizing = createContainerSizingPlugin();
+// compileCache: injects NODE_COMPILE_CACHE so recycled workers skip recompiling
+// the SSR bundle. Cache dir is content-hash keyed, tmpfs-safe.
+const sizing = createContainerSizingPlugin({ compileCache: true });
 const prometheus = createPrometheusPlugin({ prefix: 'clusterkit_' });
 
 // Prometheus plugin aggregates worker metrics over cluster IPC — getMetrics()
