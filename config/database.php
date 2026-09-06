@@ -152,6 +152,7 @@ return [
         ],
 
         'default' => [
+            'client' => env('REDIS_CLIENT', 'phpredis-sentinel'),
             'sentinels' => [
                 ['host' => env('REDIS_SENTINEL_HOST_1', 'sentinel-1'), 'port' => 26379],
                 ['host' => env('REDIS_SENTINEL_HOST_2', 'sentinel-2'), 'port' => 26379],
@@ -167,6 +168,7 @@ return [
         ],
 
         'cache' => [
+            'client' => env('REDIS_CLIENT', 'phpredis-sentinel'),
             'sentinels' => [
                 ['host' => env('REDIS_SENTINEL_HOST_1', 'sentinel-1'), 'port' => 26379],
                 ['host' => env('REDIS_SENTINEL_HOST_2', 'sentinel-2'), 'port' => 26379],

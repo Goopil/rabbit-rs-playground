@@ -173,3 +173,62 @@ skips firing `JobDeleted` when the job is failing.
 Dispatch a failing job (`maxTries=1`) on the rabbit-rs connection with
 `worker=horizon`; assert the job appears in Horizon's `failed_jobs` zset with
 status `failed` and NOT in `completed_jobs`.
+
+## Bug (v0.1.3): `rabbit-rs:status` cross-process queue counters always 0
+
+### Symptom
+
+After a load run that delivered/acked hundreds of messages per queue, the
+management-API section of `rabbit-rs:status` reports zeros:
+
+```
+Queue Metrics (management API, cross-process):
+ rabbit-rs/bulk: delivered 0, acked 0, redelivered 0
+```
+
+while the management API itself returns real cumulative counters:
+
+```
+GET /api/queues/%2F/bulk →
+  "message_stats": { "ack": 100, "deliver": 106, "deliver_get": 106, "redeliver": 6, ... }
+```
+
+### Root cause
+
+`RabbitMqStatusCommand::fetchQueueStats()` reads top-level keys
+`messages_delivered` / `messages_acked` / `messages_redelivered`
+(`self::counter($body, 'messages_delivered')`), but the management API:
+
+1. nests the cumulative counters under `message_stats` (top level only carries the
+   current-depth gauges: `messages`, `messages_ready`, `messages_unacknowledged`),
+2. names them `deliver_get` (or `deliver`), `ack`, `redeliver` — the
+   `messages_*` names are `rabbitmqctl list_queues` column names, not API fields.
+
+So `counter()` never finds a numeric value and the command silently prints zeros —
+same "silent zero" class as the old config traps.
+
+### Suggested fix
+
+```php
+$stats = $body['message_stats'] ?? [];
+
+return $entry + [
+    'messages_delivered'  => self::counter($stats, 'deliver_get'),
+    'messages_acked'      => self::counter($stats, 'ack'),
+    'messages_redelivered' => self::counter($stats, 'redeliver'),
+    'messages_ready'      => self::counter($body, 'messages_ready'),
+];
+```
+
+(bonus: expose the current depth `messages_ready` — useful next to cumulative counters)
+
+### Regression test
+
+Record deliveries through a real queue, call the command, assert the printed
+counters match `/api/queues/{vhost}/{queue}` `message_stats.deliver_get` / `ack`
+(not 0). Also assert depth matches `messages_ready`.
+
+### Evidence
+
+- Playground 2026-09-06, rabbit-rs-laravel v0.1.3 + native 0.1.3, RabbitMQ 4.x
+  management API, load test delivering 100+ per queue.

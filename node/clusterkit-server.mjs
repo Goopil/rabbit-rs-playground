@@ -1,5 +1,4 @@
 import http from 'node:http';
-import cluster from 'node:cluster';
 import { Orchestrator } from '@goopil/clusterkit';
 import { createContainerSizingPlugin } from '@goopil/clusterkit-sizing';
 import { createPrometheusPlugin } from '@goopil/clusterkit-prometheus';
@@ -23,22 +22,9 @@ const orchestrator = new Orchestrator({
 const sizing = createContainerSizingPlugin({ compileCache: true });
 const prometheus = createPrometheusPlugin({ prefix: 'clusterkit_' });
 
-// Prometheus plugin aggregates worker metrics over cluster IPC — getMetrics()
-// is primary-only, so the metrics listener lives in the primary process.
-if (cluster.isPrimary) {
-    const metricsServer = http.createServer(async (req, res) => {
-        if (req.method !== 'GET' || req.url !== '/metrics') {
-            res.statusCode = 404;
-            return res.end();
-        }
-
-        res.setHeader('Content-Type', prometheus.registry.contentType);
-        res.end(await prometheus.getMetrics());
-    });
-
-    metricsServer.listen({ port: SSR_METRICS_PORT, host: SSR_HOST });
-    orchestrator.registerOnShutdown(() => metricsServer.close());
-}
+// serve() binds /metrics + /healthz in the primary only (no-op in workers)
+// and closes the server on shutdown.
+prometheus.serve({ port: SSR_METRICS_PORT, host: SSR_HOST });
 
 orchestrator.use(sizing).use(prometheus).run(async () => {
     const capabilities = await Orchestrator.getCapabilities();

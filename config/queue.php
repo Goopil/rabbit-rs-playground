@@ -109,6 +109,7 @@ return [
             'driver' => 'rabbit-rs',
             'queue' => env('RABBIT_RS_QUEUE', 'default'),
             'hosts' => env('RABBIT_RS_HOSTS', 'rabbitmq-simple:5672'),
+            'management_url' => env('RABBIT_RS_MANAGEMENT_URL', 'http://rabbitmq-simple:15672'),
             'vhost' => env('RABBIT_RS_VHOST', '/'),
             'username' => env('RABBIT_RS_USER', 'guest'),
             'password' => env('RABBIT_RS_PASS', 'guest'),
