@@ -108,3 +108,8 @@ make chaos-heal        # old master rejoins as replica
 | Publish fails (unroutable) | `make setup` |
 | Composer rejects rabbit-rs-laravel | Must run inside Sail (`ext-rabbit_rs` only exists in the container); use `--ignore-platform-req=ext-rabbit_rs` when composer's platform check desyncs |
 | 500 on first request of a fresh worker | Warm-up listener in `AppServiceProvider` resolves sentinel connections at Octane worker start (vendor lib fix tracked in `docs/upstream-laravel-redis-sentinel.md`) |
+
+## Lib notes
+
+- Bugs found + fixes suggested: `docs/upstream-rabbit-rs-laravel.md`, `docs/upstream-laravel-redis-sentinel.md`
+- Feature proposals: `docs/features-rabbit-rs.md`, `docs/features-clusterkit.md`, `docs/features-laravel-redis-sentinel.md`
