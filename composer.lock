@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4d089ea6b4d73bde60c86e1047b40a89",
+    "content-hash": "8ef259d9b81a26ecae4e2326bd07a821",
     "packages": [
         {
             "name": "brick/math",
@@ -580,16 +580,16 @@
         },
         {
             "name": "goopil/laravel-redis-sentinel",
-            "version": "1.8.5",
+            "version": "1.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Goopil/laravel-redis-sentinel",
-                "reference": "df39dc628c8ace61c6e2a207338075364f27f59d"
+                "reference": "b677e6d6e220e347f5e5fa41ace19df2c2390409"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Goopil/laravel-redis-sentinel/zipball/df39dc628c8ace61c6e2a207338075364f27f59d",
-                "reference": "df39dc628c8ace61c6e2a207338075364f27f59d",
+                "url": "https://api.github.com/repos/Goopil/laravel-redis-sentinel/zipball/b677e6d6e220e347f5e5fa41ace19df2c2390409",
+                "reference": "b677e6d6e220e347f5e5fa41ace19df2c2390409",
                 "shasum": ""
             },
             "require": {
@@ -635,24 +635,24 @@
                 "redis",
                 "sentinel"
             ],
-            "time": "2026-09-05T07:58:06+00:00"
+            "time": "2026-09-05T19:46:53+00:00"
         },
         {
             "name": "goopil/rabbit-rs-laravel",
-            "version": "v0.1.0",
+            "version": "v0.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Goopil/rabbit-rs-laravel",
-                "reference": "67dfa61f4615f8666ee7873a3f11c1a10018dce3"
+                "reference": "31fc12415dcc76a4f75c11c47abc08f97a51219e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/67dfa61f4615f8666ee7873a3f11c1a10018dce3",
-                "reference": "67dfa61f4615f8666ee7873a3f11c1a10018dce3",
+                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/31fc12415dcc76a4f75c11c47abc08f97a51219e",
+                "reference": "31fc12415dcc76a4f75c11c47abc08f97a51219e",
                 "shasum": ""
             },
             "require": {
-                "ext-rabbit_rs": "^0.0",
+                "ext-rabbit_rs": "^0.1",
                 "illuminate/queue": "^12.0 || ^13.0",
                 "illuminate/support": "^12.0 || ^13.0",
                 "php": "^8.4",
@@ -684,7 +684,7 @@
                 "MIT"
             ],
             "description": "Laravel queue driver for the Rabbit RS native extension",
-            "time": "2026-09-04T05:25:12+00:00"
+            "time": "2026-09-06T08:52:26+00:00"
         },
         {
             "name": "graham-campbell/result-type",

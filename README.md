@@ -9,7 +9,7 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 | Program | Role |
 |---------|------|
 | `php` | Octane/Swoole HTTP server (port 80) |
-| `horizon` | Queue workers for **all** queues on both transports — `redis-sentinel` and `rabbit-rs` (same flat names), via `RABBIT_RS_WORKER=horizon` + a local vendor patch (see docs/upstream-rabbit-rs-laravel.md) |
+| `horizon` | Queue workers for **all** queues on both transports — `redis-sentinel` and `rabbit-rs` (same flat names), via `RABBIT_RS_WORKER=horizon` (requires `goopil/rabbit-rs-laravel` >= 0.1.1) |
 | `ssr` | Node ClusterKit orchestrator running the Inertia SSR server (`POST /render` on 127.0.0.1:13715) |
 
 ### Valkey HA set (compose)

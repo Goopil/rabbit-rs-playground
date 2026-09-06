@@ -108,10 +108,6 @@ return [
         'rabbit-rs' => [
             'driver' => 'rabbit-rs',
             'queue' => env('RABBIT_RS_QUEUE', 'default'),
-            // NB: worker is read from the raw connection config by the
-            // connector (defaults from config/rabbit-rs.php are NOT merged
-            // before this lookup) — it must be declared here.
-            'worker' => env('RABBIT_RS_WORKER', 'default'),
             'hosts' => env('RABBIT_RS_HOSTS', 'rabbitmq-simple:5672'),
             'vhost' => env('RABBIT_RS_VHOST', '/'),
             'username' => env('RABBIT_RS_USER', 'guest'),

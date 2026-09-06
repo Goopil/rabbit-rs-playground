@@ -1,5 +1,13 @@
 # Upstream bugs — goopil/rabbit-rs-laravel
 
+> **Status: ALL FOUR FIXED in v0.1.1** (lib) + `rabbit-rs-native` 0.1.1 (extension),
+> verified 2026-09-05 in this playground:
+> 1. `readyNow()` ships upstream on `Horizon\RabbitMqQueue` — local vendor patch removed.
+> 2. `worker` now falls back to the package defaults (`$config['worker'] ?? $this->defaults['worker'] ?? 'default'`) — the connection-level workaround was removed from `config/queue.php`.
+> 3. `publish deadline expired` after idle: 10/10 publishes through an Octane worker idle ~25 min, zero exceptions (was 1 failure then stall on v0.1.0).
+> 4. Failed rabbit-rs jobs now land in Horizon's `failed_jobs` zset with `status: failed` (6/6 after `maxTries=1` exhaustion; they also appear in Failed Jobs in the dashboard).
+> Kept below for the record.
+
 ## Bug: `Horizon\RabbitMqQueue` missing `readyNow()` — Horizon supervisor crash-loop
 
 ### Symptom

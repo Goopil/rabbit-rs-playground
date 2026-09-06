@@ -21,6 +21,7 @@ services:
             SUPERVISOR_SSR: '${SUPERVISOR_SSR:-true}'
             SSR_PORT: '${SSR_PORT:-13715}'
             SSR_MAX_RSS_MB: '${SSR_MAX_RSS_MB:-0}'
+            WEB_CONCURRENCY: '${WEB_CONCURRENCY:-3}'
             OCTANE_WATCH: '${OCTANE_WATCH:-}'
         volumes:
             - '.:/var/www/html'
