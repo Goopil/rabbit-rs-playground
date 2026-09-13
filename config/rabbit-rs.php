@@ -62,8 +62,6 @@ return [
     // default | horizon
     'worker' => env('RABBIT_RS_WORKER', 'default'),
 
-    'auto_subscribe' => env('RABBIT_RS_AUTO_SUBSCRIBE', false),
-
     'production_warning' => env('RABBIT_RS_PRODUCTION_WARNING', true),
 
     'best_effort' => env('RABBIT_RS_BEST_EFFORT', false),
