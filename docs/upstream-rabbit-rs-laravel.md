@@ -128,6 +128,7 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
 | 14 (unreachable declared queues) | #205, 0.2.1 (publishes) + #280 (detection) | publishes route without the binding; a `--fix` declare gap now fails loudly per object instead of hiding behind the success line |
 | 15-auto (early main-queue window without the plugin) | #279, 0.3.4 | live 2026-09-13: `later(10)` went straight into the ttl bucket, main queue empty until the deadline |
 | 15.1-ttl (early visibility claim) | retracted | straight-to-bucket pin green |
+| 10.1/10.3 (stale `size()` / `clear()` race swallowing publishes) | remediation wave 2 (post-0.2.2), reconciled in #253 | re-checked on 0.3.4 (2026-09-13): safe = full barrier; blind reads lag ≤1 by the documented hand-off contract and settle to full depth; the `clear()` race is closed by quiesce + synchronous `flush_all()` (`SizeFlushBarrierTest`) |
 | 16 (age-flush contract break) | 0.2.2 | lone push delivers on its own; latency caveat below |
 | Safety-matrix probe F (safe-mode unroutable invisible) | #252 (0.3.3) + #278 (0.3.4) | doctor reads `return_unroutable`; the destructor logs every never-surfaced return at teardown |
 | DLX canary proposal | #219/#271 (0.3.3) + #275/#276 (0.3.4) | bulk-scan canary, coverage-aware verdicts; see #288 for the hygiene debt |
@@ -139,18 +140,13 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
 
 ### Still open
 
-- **10.1 — stale `size()` immediately after a same-process push.** Reads are correct once the
-  async flush settles (0–5 s, see the bug 16 latency caveat); the instant-read contract of 0.0.9
-  never came back. Minor, but it keeps fooling depth assertions in tests and one-shot tooling.
-- **10.3 — `clear()` racing an in-flight flush can swallow same-process publishes** (the
-  historical 900-loss shape; reproducible in `ChildProcessReproTest`). Data-loss footgun under
-  `blind`, loud elsewhere.
-- **12.3 — hook-less processes drop deferred publishes** (tinker loop, custom shutdown paths:
-  no terminating hook, no close-drain for the in-memory hold). The bucket paths (#279's ttl
-  degradation) make the common cases broker-side now; the in-memory fallback remains the hole.
 - **15.2 — quorum-TTL release is a floor with no ceiling** (lazy expiry on an idle broker;
-  observed minutes past the deadline). Broker semantics, not configurable; the pass-or-skip
-  guards encode it.
+  observed minutes past the deadline). Broker semantics — **documented limitation, non-goal**
+  per #253 (mitigated by the keep-alive redeclare of live bucket queues, #211); the
+  pass-or-skip guards in the delay tests encode it.
+- **#290 — expose `returned_publications_total` / `dropped_publications_total` in
+  `Pool::stats()` + doctor.** The last actionable item from the legacy dossier: mandatory
+  returns are only visible through a follow-up operation and drops are unreachable from PHP.
 - **#282 — consume throughput: the 3× driver gap is supply-side wake-chain latency** (profiling
   findings + optimization leads; perf investigation, not a correctness bug).
 - **#285 — the topology verify probe races the declare bring-up teardown**: raw lapin
@@ -166,7 +162,8 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
   every connection of the broker to permanent `inconclusive`. Deterministic fix: a dedicated
   canary DLQ per connection; cheapest: count foreign messages during the scan and say so.
 - **Flush-timer latency caveat** (not a bug, flagged since 0.2.2): dispatch→broker is ~0–5 s
-  under load, not the 1 ms `flush_interval` contract.
+  under load, not the 1 ms `flush_interval` contract — #253 asks for a re-measure on current
+  main before deciding whether anything beyond a doc note is warranted.
 - **`--max-jobs`/`--max-time` still only recycle the child** without stopping the supervisor —
   by design now (`--stop-when-empty` is the CI mode).
 
@@ -414,10 +411,13 @@ conclusion.
 
 ### Bug 10 (regression + data-loss footgun): publish buffer never force-flushes on read; async age-flush up to several seconds; un-flushed tail lost at terminating close in multi-pool flows
 
-> **Status after 0.3.4:** 10.1 and 10.3 remain the open members of this family — the async flush
-> (0.2.2 timer) delivers in 0–5 s and every read after settle is correct, but the instant-read
-> contract never returned (10.1) and the `clear()` race is still reproducible (10.3). See
-> "Current status" above.
+> **Status after 0.3.4 — CLOSED:** 10.2 was fixed back in 0.0.6. 10.1/10.3 were closed by the
+> remediation wave after 0.2.2 (reconciled in #253) and re-verified live on the 0.3.4 dist
+> (2026-09-13): safe-mode `size()` right after a same-process push returns the real broker depth
+> through the full barrier; blind-mode reads may lag by exactly the one in-flight publication
+> (documented hand-off contract — "hand-off is not delivery") and settle to the full depth; the
+> `clear()` race is closed by the quiesce + synchronous `flush_all()`, guarded by
+> `SizeFlushBarrierTest`.
 
 **0.1.6 update:** the force-flush calls are back in the code (`RabbitMqQueue`
 `size()`/`clear()` call `$this->pool->flush()` — "issue #194" refs) but they are **not synchronous barriers**: `size()`
