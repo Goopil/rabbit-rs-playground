@@ -1,5 +1,27 @@
 # Upstream bugs — goopil/rabbit-rs-laravel
 
+> **Session 2026-09-13 — v0.3.2** (package + ext 0.3.2 lockstep — the package now enforces
+> `EXTENSION_CONSTRAINT ^0.3.2` at runtime; the doctor reports the constraint as satisfied).
+> The headline is the **auto-scaling / one-shot feature (upstream PR #262)**: `rabbit-rs:work`
+> gains `--once` / `--stop-when-empty`, admission-only scaling driven by broker depth
+> (management API first, native `Pool::size()` fallback via the new `QueueDepthSampler` —
+> persistent lazy pools, not forks), and a doctor capacity line. Verified live here: admission
+> grows the fleet to `--max-workers` and never beyond, idle fleets downscale without touching
+> the restart bookkeeping, `--stop-when-empty` drains authoritatively. **The roast found one
+> HIGH, filed and fixed upstream the same day (#269 → PR #270):** in `--once` mode every child
+> exits after one job, so the fleet empties constantly and each empty moment consumed one
+> re-arm of an absolute budget of 3 — the supervisor then exited **0** with 192 of 215 jobs
+> still pending. **v0.3.2 ships without this fix** (merged post-release, unreleased at the
+> time of writing); playground-verified against a path-repo build of the fix: 215 jobs → 202
+> consumed in the first pass, 7 → 1 → 0 over three passes. The fix also restores the
+> pre-#262 signal order (handlers installed before the initial spawn — no more orphan window
+> on SIGTERM during spawn). The small per-pass residual is the quorum-stats convergence race
+> (`messages_ready` lags seconds behind reality after a burst) — now documented upstream:
+> authoritative drains belong to `--stop-when-empty`, whose children observe emptiness
+> directly. Remaining from the same live review, filed upstream: #272 (the native depth
+> fallback does a blocking AMQP round-trip inside the 100 ms supervision loop) and #273
+> (see bug 11 below). Suite: 71 tests, 65 pass, 6 skip, 0 fail.
+>
 > **Session 2026-09-11 — v0.2.2** (package + ext 0.2.2, lockstep). **Bug 16 fixed**: the
 > ext now enforces the publish buffer's `flush_interval` age deadline with a background
 > timer — the changelog cites our exact 0.2.1 symptoms ("a lone FPM publish stayed
@@ -379,6 +401,12 @@ making `--fix` fail whenever it is used without workers already up — the exact
 **Fix sketch:** report declaration success on the declare step itself; treat consumer readiness as a separate warning
 (or only check it when workers are flagged as running). — *0.1.6 moved most of the way there; the 30 s gate remains.*
 
+> **0.3.2 live finding (filed upstream as #273):** `--fix` prints its success line ("topology
+> declared") without confirming the declared objects actually exist — observed live: the
+> command exited green while the queue was never created (it had to be declared by API
+> afterwards). Suggested upstream: verify the post-condition per object (or re-declare
+> passively) before printing success, and exit non-zero when an object is missing.
+
 ### Bug 12 (false strategies + teardown semantics + hang): `delay.mode=plugin`/`ttl` are in-memory aliases of
 `auto`; teardown publishes deferred jobs early or loses them; safe mode hangs instead of failing
 
@@ -645,6 +673,9 @@ Read-through:
 - `rabbit-rs:work` never self-terminates: `--max-jobs`/`--max-time` recycle the child (clean exit → immediate restart,
   per the 0.0.9 fix) and the supervisor keeps running. Fine for production daemons; surprising in CI. A
   `--stop-when-empty` (or honoring `--max-time` at supervisor level) would help.
+  **0.3.2 update:** self-termination now exists — `--stop-when-empty` (drain then exit; children observe emptiness
+  directly, the authoritative mode) and `--once` (depth-driven drain; see the 0.3.2 session note for the #269/#270
+  re-arm history). `--max-jobs`/`--max-time` still only recycle the child without stopping the supervisor.
 - Long-running workers (Horizon) keep the compiled profile from boot: config changes require `horizon:terminate` +
   restart. With the pre-split config, bug 8 meant a restarted `supervisor-rabbit` would have consumed the new `work`/
   `ia-*`
@@ -653,6 +684,17 @@ Read-through:
   keeps working (delivery-limit 20, one broker redelivery observed in the `redelivered` counter).
 
 ## Verdict
+
+**0.3.2:** the auto-scaling / one-shot surface lands (upstream #262) — `--once`,
+`--stop-when-empty`, depth-driven admission scaling with the management-API sampler plus a
+native fallback, a doctor capacity line, and package↔extension lockstep enforced at runtime
+(`EXTENSION_CONSTRAINT`). The feature shipped with one drain-correctness hole (upstream #269,
+fixed post-release in #270, not yet in a dist): `--once`'s absolute 3-re-arm budget was
+consumed by the constantly-emptying fleet and the command exited 0 with 192/215 jobs pending;
+after #270 the budget renews on observed progress (clean child exits, crash-loops excluded)
+and the only per-pass residual is the quorum-stats convergence race. Bugs 10.1, 10.3, 12.1,
+12.3/15.2 and 15-auto carry over; #272 (blocking native fallback in the 100 ms loop) and #273
+(optimistic `--fix` success line) are the new open items.
 
 **0.2.2:** bug 16 dead — the background timer restores lone-publish delivery and the
 depth counters behave again. Latency between dispatch and broker is back to sub-second
