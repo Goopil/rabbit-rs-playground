@@ -3,8 +3,12 @@
     "mcp": {
         "laravel-boost": {
             "type": "local",
-            "command": ["vendor/bin/sail", "artisan", "boost:mcp"],
-            "enabled": true
+            "enabled": true,
+            "command": [
+                "vendor/bin/sail",
+                "artisan",
+                "boost:mcp"
+            ]
         }
     }
 }
