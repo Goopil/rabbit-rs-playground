@@ -1,9 +1,13 @@
 # goopil/laravel-redis-sentinel — upstream bugs & fixes
 
-> **Status**: bugs 1 & 2 **FIXED in v1.9.0** (verified 2026-09-05 in this playground:
-> fresh-instance `connections()` returns an array, `horizon:alive` exits 0 with the
-> connection-level `service` config shape, live failover chaos test passes).
-> Bug 3 is **NEW in v1.10.0** (`sentinel:status` detection, see below).
+> **Status (2026-09-11, v1.10.1)**: bugs 1 & 2 **FIXED in v1.9.0** (verified 2026-09-05
+> in this playground: fresh-instance `connections()` returns an array, `horizon:alive`
+> exits 0 with the connection-level `service` config shape, live failover chaos test
+> passes). Bug 3 is **FIXED in v1.10.1** (commit 1673cb4, verified 2026-09-11: with the
+> per-connection `client` workaround removed from `config/database.php`, `sentinel:status`
+> lists both sentinel connections and renders the full topology; cache + `horizon:alive`
+> still green). All three upstream findings are now closed. Also shipped by goopil:
+> the `sentinel:status` feature proposal (#113) landed in v1.10.0.
 
 ## Bug 1: `connections()` returns null on fresh instances
 
@@ -124,7 +128,13 @@ Assert `checkSentinel()` returns `0` when the connection uses the published conf
 
 Commit: `fix: read horizon liveness service from the documented config schema`
 
-## Bug (v1.10.0): `sentinel:status` ignores the global `database.redis.client`
+## Bug 3 (v1.10.0): `sentinel:status` ignores the global `database.redis.client`
+
+> **FIXED in v1.10.1 (1673cb4) — verified 2026-09-11.** The per-connection `client`
+> workaround was removed from `config/database.php`: with only the global
+> `database.redis.client = phpredis-sentinel`, `sentinel:status` detects both
+> connections and renders master/replicas/sentinels for each. Cache reads and
+> `horizon:alive` (exit 0) unaffected. Original analysis:
 
 ### Symptom
 
@@ -183,10 +193,65 @@ per-connection client override to `phpredis` → correctly excluded.
 
 ### Playground workaround
 
-Declared `'client' => env('REDIS_CLIENT', 'phpredis-sentinel')` on each sentinel
-connection (config/database.php) — explicit and harmless, but shouldn't be required.
+**Removed 2026-09-11** (v1.10.1 ships the fix — the standard global-only shape is what
+this playground runs now). For the record: we had declared
+`'client' => env('REDIS_CLIENT', 'phpredis-sentinel')` on each sentinel connection
+while the fix was pending.
 
 ### Evidence
 
 - Playground 2026-09-06, laravel-redis-sentinel v1.10.0: "No Redis Sentinel
   connection defined" before the workaround, full topology after.
+
+## Chaos roast (2026-09-11, v1.10.1) — failover under load, quorum loss, Horizon
+
+Cluster: valkey 1×master + 2×replicas, 3 sentinels (quorum 2, down-after 5 s,
+failover-timeout 20 s), driver v1.10.1, load = 20 ops/s via the cache connection
+(reads + writes) in a detached artisan process.
+
+### R1: a write during the failover election window throws `READONLY` instead of retrying via the sentinels
+
+Kill the master mid-load: the 0.2.1-style story differs by path —
+
+- **Cache writes/reads during failover: 0 errors, 0 lost ops** across 1632 ops.
+  One write (issued at sdown time, t+17.8) **blocked for 17 s** then succeeded;
+  everything else stayed ≤ 10 ms. The retry policy holds the operation until the
+  new master is promoted — at-least-once, zero visible errors.
+- **Queue pushes during the same window can throw**: a `push` issued while the
+  client's connection still pointed at the (now demoted/replica) node failed with
+  `RedisException READONLY You can't write against a read only replica` — the
+  job was never queued and the exception surfaced to the caller. Same failover
+  window, same driver, opposite outcome from the cache probe: the READONLY
+  exception is not (or not always) caught and retried through a sentinel
+  re-resolve.
+
+Inconsistency to fix: `READONLY` from a demoted master should trigger a sentinel
+re-resolve + retry (bounded), like the blocked-write path evidently does — not
+bubble out. As-is, a web request dispatching during a failover can 500.
+
+Repro sketch: writer loop at 10 ops/s on the cache connection + a second process
+dispatching closures on the `redis` connection; kill the master at sdown time;
+compare outcomes per path.
+
+### R2 (documented semantics, not a lib bug): async replication loses the un-replicated tail
+
+After the same failover, a cache key written pre-kill was **gone** (`get` → null):
+valkey promoted a replica that had not received the last writes, and the old
+master rejoined as replica and re-synced. Standard valkey/Redis sentinel behavior
+(async replication), but it means **the failover window is also a data-loss
+window** for anything written in the last replication lag — worth a doc line in
+the package README rather than a fix.
+
+### R3 (pass): quorum loss is transparent while the master lives
+
+With writes flowing, stopped sentinel-1 (t+8) then sentinel-2 (t+16, leaving 1/3
+< quorum 2), restored both at t+30: **542 ops, 0 errors, max latency 20 ms**. The
+client only talks to sentinels on (re)connect; with the master alive, quorum loss
+is invisible. `sentinel:status` healthy again after restoration.
+
+### Horizon during failover (pass, with the R1 caveat)
+
+Jobs dispatched before the kill and after recovery were all processed (queue
+drained, 0 pending). Jobs dispatched **during** the R1 window never reached the
+queue (the dispatch itself threw) — Horizon itself is unaffected; the exposure is
+entirely on the client's push path.

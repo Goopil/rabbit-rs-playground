@@ -1,0 +1,11 @@
+{
+    "name": "SafetyLab",
+    "alias": "safetylab",
+    "description": "Live comparison of the rabbit-rs safety modes (blind / unsafe / safe)",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\SafetyLab\\Providers\\SafetyLabServiceProvider"
+    ],
+    "files": []
+}

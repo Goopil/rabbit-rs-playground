@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Support\Str;
@@ -228,11 +229,13 @@ return [
                 'tries' => 3,
             ],
             /*
-            | Consumed by Horizon via a LOCAL VENDOR PATCH adding readyNow()
-            | to Horizon\RabbitMqQueue (see docs/upstream-rabbit-rs-laravel.md).
-            | Without the patch, Horizon's AutoScaler crash-loops the
-            | supervisor and no worker consumes the connection. The patch is
-            | overwritten by composer install — re-apply or fix upstream.
+            | Consumes only the three legacy rabbit-rs queues. The `work` queue
+            | is consumed by the plain `queue:work` worker on the dedicated
+            | `rabbit-rs-work` connection, and the ia queues by
+            | `rabbit-rs:work --connection=rabbit-rs-ia` — isolation is
+            | enforced per CONNECTION (the driver compiles one worker profile
+            | per connection and round-robins over all its queues, see
+            | docs/upstream-rabbit-rs-laravel.md, bug 8).
             */
             'supervisor-rabbit' => [
                 'connection' => 'rabbit-rs',
@@ -260,11 +263,19 @@ return [
             ],
             'supervisor-rabbit' => [
                 'connection' => 'rabbit-rs',
-                'queue' => ['default', 'high-priority', 'bulk'],
-                'balance' => 'simple',
+                'queue' => ['default', 'high-priority'],
+                'balance' => 'auto',
                 'processes' => 2,
                 'tries' => 3,
             ],
+            'supervisor-rabbit-bulk' => [
+                'connection' => 'rabbit-rs',
+                'queue' => ['bulk'],
+                'balance' => 'simple',
+                'processes' => 4,
+                'tries' => 3,
+            ],
+
         ],
     ],
 

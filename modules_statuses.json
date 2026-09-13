@@ -1,5 +1,7 @@
 {
     "RabbitRs": true,
     "QueueLab": true,
-    "FrontLab": true
+    "FrontLab": true,
+    "SafetyLab": true,
+    "LifecycleLab": true
 }

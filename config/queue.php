@@ -100,10 +100,15 @@ return [
 
         /*
         | Rabbit RS — connection-first schema (rabbit-rs-laravel 0.1.0):
-        | one connection = one broker = one exchange. Queue names are flat
-        | and identical on both transports (redis-sentinel and rabbit-rs):
-        | default, high-priority, bulk. Cross-cutting keys (tls, delay,
-        | dead_letter, queue_type, safety, ...) come from config/rabbit-rs.php.
+        | one connection = one broker = one exchange = ONE consumer group
+        | (see docs/upstream-rabbit-rs-laravel.md, bug 8: a connection
+        | compiles a single worker profile, so `--queue` never scopes
+        | consumption). Queue names are flat and shared by both
+        | transports: default, high-priority, bulk (Horizon on
+        | `rabbit-rs`), work (plain `queue:work` on `rabbit-rs-work`),
+        | ia-summary + ia-embed (`rabbit-rs:work` on `rabbit-rs-ia`).
+        | Cross-cutting keys (tls, delay, dead_letter, queue_type,
+        | safety, ...) come from config/rabbit-rs.php.
         */
         'rabbit-rs' => [
             'driver' => 'rabbit-rs',
@@ -119,25 +124,75 @@ return [
                 'default' => [
                     'queue' => 'default',
                     'weight' => 1,
-                    'priority_class' => 0,
                     'prefetch' => 16,
-                    'starvation_after' => 30,
                 ],
                 'high-priority' => [
                     'queue' => 'high-priority',
                     'weight' => 4,
-                    'priority_class' => -1,
                     'prefetch' => 16,
-                    'starvation_after' => 15,
                 ],
                 'bulk' => [
                     'queue' => 'bulk',
                     'weight' => 1,
-                    'priority_class' => 0,
                     'prefetch' => 16,
-                    'starvation_after' => 30,
                 ],
             ],
+        ],
+
+        /* Consumed by the plain Laravel worker: `queue:work rabbit-rs-work`.
+           Single queue, single derived subscription → pop() scoping holds. */
+        'rabbit-rs-work' => [
+            'driver' => 'rabbit-rs',
+            'queue' => 'work',
+            'hosts' => env('RABBIT_RS_HOSTS', 'rabbitmq-simple:5672'),
+            'management_url' => env('RABBIT_RS_MANAGEMENT_URL', 'http://rabbitmq-simple:15672'),
+            'vhost' => env('RABBIT_RS_VHOST', '/'),
+            'username' => env('RABBIT_RS_USER', 'guest'),
+            'password' => env('RABBIT_RS_PASS', 'guest'),
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+        ],
+
+        /* Consumed by `rabbit-rs:work --connection=rabbit-rs-ia`. Two queues
+           in one consumer group (weighted round-robin between them) — never
+           touches the other connections' queues. */
+        'rabbit-rs-ia' => [
+            'driver' => 'rabbit-rs',
+            'queue' => 'ia-summary',
+            'hosts' => env('RABBIT_RS_HOSTS', 'rabbitmq-simple:5672'),
+            'management_url' => env('RABBIT_RS_MANAGEMENT_URL', 'http://rabbitmq-simple:15672'),
+            'vhost' => env('RABBIT_RS_VHOST', '/'),
+            'username' => env('RABBIT_RS_USER', 'guest'),
+            'password' => env('RABBIT_RS_PASS', 'guest'),
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+            'subscriptions' => [
+                'ia-summary' => [
+                    'queue' => 'ia-summary',
+                    'weight' => 1,
+                    'prefetch' => 16,
+                ],
+                'ia-embed' => [
+                    'queue' => 'ia-embed',
+                    'weight' => 1,
+                    'prefetch' => 16,
+                ],
+            ],
+        ],
+
+        /* Test isolation: consumed by `rabbit-rs:work --connection=rabbit-rs-roast`
+           only — Horizon consumes nothing here, so drain/scaling tests are
+           deterministic. */
+        'rabbit-rs-roast' => [
+            'driver' => 'rabbit-rs',
+            'queue' => 'roast-drain',
+            'hosts' => env('RABBIT_RS_HOSTS', 'rabbitmq-simple:5672'),
+            'management_url' => env('RABBIT_RS_MANAGEMENT_URL', 'http://rabbitmq-simple:15672'),
+            'vhost' => env('RABBIT_RS_VHOST', '/'),
+            'username' => env('RABBIT_RS_USER', 'guest'),
+            'password' => env('RABBIT_RS_PASS', 'guest'),
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
         ],
 
     ],

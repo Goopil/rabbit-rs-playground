@@ -1,0 +1,21 @@
+{
+    "name": "nwidart/lifecyclelab",
+    "description": "Terminating-close repros for rabbit-rs publish buffers and deferred publishes",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\LifecycleLab\\": "app/"
+        }
+    }
+}

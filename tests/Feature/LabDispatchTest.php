@@ -61,6 +61,32 @@ class LabDispatchTest extends TestCase
         Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'bulk');
     }
 
+    public function test_rabbit_rs_dispatches_to_work_and_ia_queues(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/lab/dispatch', [
+            'job' => 'default',
+            'connection' => 'rabbit-rs-work',
+            'queue' => 'work',
+            'count' => 1,
+        ]);
+
+        foreach (['ia-summary', 'ia-embed'] as $queue) {
+            $this->actingAs($user)->post('/lab/dispatch', [
+                'job' => 'default',
+                'connection' => 'rabbit-rs-ia',
+                'queue' => $queue,
+                'count' => 1,
+            ]);
+        }
+
+        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'work');
+        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'ia-summary');
+        Queue::assertPushed(ProcessDefaultJob::class, fn ($job, $queue) => $queue === 'ia-embed');
+    }
+
     public function test_jobs_expose_horizon_tags(): void
     {
         $default = new ProcessDefaultJob(['id' => 1]);

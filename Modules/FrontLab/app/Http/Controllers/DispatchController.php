@@ -18,8 +18,8 @@ class DispatchController extends Controller
     {
         $validated = $request->validate([
             'job' => 'required|string|in:'.implode(',', array_keys(self::JOBS)),
-            'connection' => 'required|in:redis-sentinel,rabbit-rs,both',
-            'queue' => 'nullable|string|in:default,high-priority,bulk',
+            'connection' => 'required|in:redis-sentinel,rabbit-rs,rabbit-rs-work,rabbit-rs-ia,both',
+            'queue' => 'nullable|string|in:default,high-priority,bulk,work,ia-summary,ia-embed',
             'count' => 'required|integer|min:1|max:10000',
         ]);
 

@@ -2,8 +2,8 @@
 
 namespace Modules\FrontLab\Providers;
 
-use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class FrontLabServiceProvider extends ModuleServiceProvider
 {
@@ -36,8 +36,8 @@ class FrontLabServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     * 
-     * @param $schedule
+     *
+     * @param  $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
     // {

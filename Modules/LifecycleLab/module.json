@@ -1,0 +1,11 @@
+{
+    "name": "LifecycleLab",
+    "alias": "lifecyclelab",
+    "description": "Terminating-close repros for rabbit-rs publish buffers and deferred publishes",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\LifecycleLab\\Providers\\LifecycleLabServiceProvider"
+    ],
+    "files": []
+}

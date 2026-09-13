@@ -22,7 +22,7 @@ class RabbitRsSetupTopologyCommand extends Command
 
     private const EXCHANGE = 'laravel.jobs';
 
-    private const QUEUES = ['default', 'high-priority', 'bulk'];
+    private const QUEUES = ['default', 'high-priority', 'bulk', 'work', 'ia-summary', 'ia-embed', 'queue-lab-safety'];
 
     private const DEAD_LETTER_EXCHANGE = 'dead-letters';
 
@@ -70,8 +70,12 @@ class RabbitRsSetupTopologyCommand extends Command
 
     private function createExchange(string $base, array $auth, string $vhost, string $exchange): bool
     {
+        // dead-letters must be FANOUT: on a direct exchange the '#' binding
+        // matches only the LITERAL key '#', so dead-lettered messages (which
+        // keep their original routing key) would be unroutable and dropped.
+        $type = $exchange === self::DEAD_LETTER_EXCHANGE ? 'fanout' : 'direct';
         $body = json_encode([
-            'type' => 'direct',
+            'type' => $type,
             'durable' => true,
             'auto_delete' => false,
             'internal' => false,
