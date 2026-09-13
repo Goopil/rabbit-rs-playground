@@ -685,6 +685,23 @@ Read-through:
 
 ## Verdict
 
+**0.3.3:** #270 ships in a dist and is validated live here — 215 jobs through `--once --max-workers=4`
+drained 208 in pass 1 with the known quorum-stats convergence residual (7), and pass 2 finished the queue
+(`ready: 0`, twice reproduced). But the release's headline doctor canary (#219, #271) **false-failed out of
+the box** behind this playground's 63-message `failed-jobs` backlog: the verification pulled one message at
+the DLQ head with `ack_requeue_true`, never advanced past foreign traffic, and reported "not received" —
+issue #275, fixed in #276 (not yet in a dist): a bounded bulk-scan window (`CANARY_DLQ_SCAN_WINDOW`, default
+100) with coverage-aware verdicts — whole DLQ visible and probe absent after polling = genuine failure,
+full window = `CanaryInconclusiveException` warning, competing consumers on the connection (Horizon running)
+= inconclusive warning instead of a fail. Live result: 3 connections `[ok] delivered, rejected, and received
+on the DLQ` behind the backlog, the Horizon connection `[warn] inconclusive` instead of red. #272 and #273
+carry fixes in open PRs (#281 sampler TTL-cache fallback, #280 `--fix` post-condition verification), plus
+#278 (safe-mode teardown surfacing) and #279 (delay-plugin guards: `auto` resolves against the broker at
+compile time, `plugin` refuses loudly) — #279's first cut resolved the delay mode only inside the connector,
+splitting the pool fingerprint from every raw-recompile site (the Octane RoadRunner certification caught it:
+`/publish` buffered 5, `/stats` polled an empty pool forever); the resolution now lives in
+`ConnectionCompiler::compile()` itself.
+
 **0.3.2:** the auto-scaling / one-shot surface lands (upstream #262) — `--once`,
 `--stop-when-empty`, depth-driven admission scaling with the management-API sampler plus a
 native fallback, a doctor capacity line, and package↔extension lockstep enforced at runtime
