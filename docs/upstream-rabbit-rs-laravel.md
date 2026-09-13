@@ -1,5 +1,9 @@
 # Upstream bugs — goopil/rabbit-rs-laravel
 
+> **Session 2026-09-13 — v0.3.4** (package + ext 0.3.4). The full consolidated inventory —
+> fixed-and-verified vs still open across every finding in this dossier — lives in
+> **"Current status — post-v0.3.4"** below. Session notes for v0.3.2 and earlier follow.
+>
 > **Session 2026-09-13 — v0.3.2** (package + ext 0.3.2 lockstep — the package now enforces
 > `EXTENSION_CONSTRAINT ^0.3.2` at runtime; the doctor reports the constraint as satisfied).
 > The headline is the **auto-scaling / one-shot feature (upstream PR #262)**: `rabbit-rs:work`
@@ -103,6 +107,68 @@
 > and one improved behavior: bug 11's `--fix` no longer exits 1 after the failed readiness
 > gate — it now prints a soft warning (`consumer readiness not confirmed … within 30s`) and
 > exits **0**; the 30 s gate itself still burns the clock.
+
+## Current status — post-v0.3.4 (2026-09-13)
+
+Consolidated inventory across every finding in this dossier, as verified in this playground on the
+v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
+
+### Fixed and verified
+
+| Finding | Fixed in | Verified here |
+|---|---|---|
+| 1–5 (Horizon readyNow, worker inheritance, publish deadline, failure recording, status counters) | 0.1.1–0.1.4 | table below, guards green |
+| 6, 7 (doctor broker probe + Horizon check) | 0.2.0 | doctor green on all connections |
+| 8 (cross-queue consumption leak) | #207, 0.2.1 | pop scoping verified 2026-09-10; the one-connection-per-group split stays as defense-in-depth |
+| 9 (pop blocking) | retracted | `block_for` documented default; pin green |
+| 11 (`--fix` false failure + 30 s stall + optimistic success line) | #208/#214 (0.2.1) + #273/#280 (0.3.4) | `--fix` ~1 s, post-condition verified per object, non-zero exit on gaps |
+| 12.1 (plugin absent = silent loss in `plugin` mode) | #279, 0.3.4 | `DelayPluginMissingException` on the first delayed publish; `auto` degrades to ttl at compile |
+| 12.2/12.4 (teardown publishes deferred jobs early) | 0.2.2 | safety-matrix probe E: routed to the bucket in all three modes |
+| 13 (`x-delivery-limit` on classic queues) | #204, 0.2.1 | compile-time rejection with the config path |
+| 14 (unreachable declared queues) | #205, 0.2.1 (publishes) + #280 (detection) | publishes route without the binding; a `--fix` declare gap now fails loudly per object instead of hiding behind the success line |
+| 15-auto (early main-queue window without the plugin) | #279, 0.3.4 | live 2026-09-13: `later(10)` went straight into the ttl bucket, main queue empty until the deadline |
+| 15.1-ttl (early visibility claim) | retracted | straight-to-bucket pin green |
+| 16 (age-flush contract break) | 0.2.2 | lone push delivers on its own; latency caveat below |
+| Safety-matrix probe F (safe-mode unroutable invisible) | #252 (0.3.3) + #278 (0.3.4) | doctor reads `return_unroutable`; the destructor logs every never-surfaced return at teardown |
+| DLX canary proposal | #219/#271 (0.3.3) + #275/#276 (0.3.4) | bulk-scan canary, coverage-aware verdicts; see #288 for the hygiene debt |
+| #269 (`--once` exits 0 with the queue pending) | #270, 0.3.3 | 215-job drain validated (see #287 for the 0.3.4 convergence regression) |
+| #272 (blocking native fallback in the supervision loop) | #281, 0.3.4 | 2 s TTL memoization; see #287 for the once-mode interaction |
+| #273 (`--fix` prints success without verification) | #280, 0.3.4 | post-condition verification |
+| #275 (canary false-fails behind a DLQ backlog) | #276, 0.3.4 | 3× `[ok]` behind a 63-message backlog; Horizon connection warns inconclusive |
+| Doctor "inheritance trap" lint | 0.3.4 | now `[ok] worker class … resolved through the package defaults` — informational, no longer a false warn |
+
+### Still open
+
+- **10.1 — stale `size()` immediately after a same-process push.** Reads are correct once the
+  async flush settles (0–5 s, see the bug 16 latency caveat); the instant-read contract of 0.0.9
+  never came back. Minor, but it keeps fooling depth assertions in tests and one-shot tooling.
+- **10.3 — `clear()` racing an in-flight flush can swallow same-process publishes** (the
+  historical 900-loss shape; reproducible in `ChildProcessReproTest`). Data-loss footgun under
+  `blind`, loud elsewhere.
+- **12.3 — hook-less processes drop deferred publishes** (tinker loop, custom shutdown paths:
+  no terminating hook, no close-drain for the in-memory hold). The bucket paths (#279's ttl
+  degradation) make the common cases broker-side now; the in-memory fallback remains the hole.
+- **15.2 — quorum-TTL release is a floor with no ceiling** (lazy expiry on an idle broker;
+  observed minutes past the deadline). Broker semantics, not configurable; the pass-or-skip
+  guards encode it.
+- **#282 — consume throughput: the 3× driver gap is supply-side wake-chain latency** (profiling
+  findings + optimization leads; perf investigation, not a correctness bug).
+- **#285 — the topology verify probe races the declare bring-up teardown**: raw lapin
+  `invalid connection state: Closed` leaks through admin ops instead of the coordinator's
+  classified error, and a single 403 during bring-up dooms the whole pool (`FailedPermanent`).
+  Test-side relaxed in #286; the extension-side items are open.
+- **#287 — `--once` needs ~2× the passes to converge on 0.3.4** (215 jobs: 204/4/6/1 over 4
+  passes vs 208/0 over 2 on 0.3.3): the #281 sampler cache makes a stale-0 or failed probe
+  authoritative for 2 s and the final drain check exits on it — silent exit 0 with real work
+  pending, `/get`-verified. Needs a fresh read for the exit decision.
+- **#288 — the doctor canary self-sandbags**: each run deposits a canary that never leaves the
+  DLQ; the playground accumulated 188 messages and outgrew the 100-message scan window, degrading
+  every connection of the broker to permanent `inconclusive`. Deterministic fix: a dedicated
+  canary DLQ per connection; cheapest: count foreign messages during the scan and say so.
+- **Flush-timer latency caveat** (not a bug, flagged since 0.2.2): dispatch→broker is ~0–5 s
+  under load, not the 1 ms `flush_interval` contract.
+- **`--max-jobs`/`--max-time` still only recycle the child** without stopping the supervisor —
+  by design now (`--stop-when-empty` is the CI mode).
 
 ## Resolved upstream — verified in this playground
 
@@ -247,7 +313,7 @@ at t+3s, 300 at t+5s.
 | `queue:pause` / `queue:resume`               | not supported by this driver (not tested further)                                                                                                      |
 | Horizon path (`Horizon\RabbitMqQueue`)       | exercised live via running supervisors (push/pop/failed/readyNow) ✓                                                                                   |
 
-## Open bugs (v0.1.5)
+## Bug dossier (0.1.5-era write-ups; per-bug status notes inline — the consolidated state lives in "Current status" above)
 
 ### Bug 6: `rabbit-rs:doctor` broker probe always fails — `Undefined variable $nativeConfig`
 
@@ -293,6 +359,10 @@ live under
 config/horizon.php` — even with three supervisors configured (this playground). Dead check, false alarm.
 
 ### Bug 8 (design): `rabbit-rs:work --queue=X` does not scope consumption — cross-queue leak
+
+> **FIXED upstream (#207) — pop scoping verified 2026-09-10 (0.2.1).** The one-connection-per-group
+> split below stays as defense-in-depth: it also scopes Horizon's compiled profile at boot, which
+> the pop-level fix cannot do for long-running workers that keep the profile from boot.
 
 The 0.1.0 fan-out is advertised as "`--queue=x,y` resolves names by definition … a queue defined on two targeted
 connections is consumed on both". The plan resolution (`WorkPlanResolver`) is correct, but the plan only decides **which
@@ -343,6 +413,11 @@ process** is still buffered (flush happens on the consume path). `consumers.wait
 conclusion.
 
 ### Bug 10 (regression + data-loss footgun): publish buffer never force-flushes on read; async age-flush up to several seconds; un-flushed tail lost at terminating close in multi-pool flows
+
+> **Status after 0.3.4:** 10.1 and 10.3 remain the open members of this family — the async flush
+> (0.2.2 timer) delivers in 0–5 s and every read after settle is correct, but the instant-read
+> contract never returned (10.1) and the `clear()` race is still reproducible (10.3). See
+> "Current status" above.
 
 **0.1.6 update:** the force-flush calls are back in the code (`RabbitMqQueue`
 `size()`/`clear()` call `$this->pool->flush()` — "issue #194" refs) but they are **not synchronous barriers**: `size()`
@@ -406,6 +481,10 @@ making `--fix` fail whenever it is used without workers already up — the exact
 > command exited green while the queue was never created (it had to be declared by API
 > afterwards). Suggested upstream: verify the post-condition per object (or re-declare
 > passively) before printing success, and exit non-zero when an object is missing.
+>
+> **FIXED in 0.3.4 (#280) — verified 2026-09-13:** the post-condition verification re-runs the
+> probes after the declare pass and prints success only for objects confirmed on the broker;
+> gaps exit non-zero per object. Bug 11 is fully closed.
 
 ### Bug 12 (false strategies + teardown semantics + hang): `delay.mode=plugin`/`ttl` are in-memory aliases of
 `auto`; teardown publishes deferred jobs early or loses them; safe mode hangs instead of failing
@@ -431,6 +510,14 @@ loud failure when a strategy's prerequisites are missing.
 > degrades to them without the plugin (no hard error). 12.4 (teardown publishes early)
 > is still live. The bucket machinery brings its own break: see bug 15 (early
 > consumer-visibility + unbounded release lateness).
+>
+> **Status after 0.3.4:** 12.1 fully dead — #279 makes `plugin` refuse loudly
+> (`DelayPluginMissingException`, first delayed publish, when the management API proves the
+> plugin absent) and resolves `auto` against the broker at compile time (degrading to ttl
+> without the plugin), so the plugin strategy never runs unguarded. 12.2/12.4 dead since the
+> 0.2.2 timer (probe E: teardown routes to the bucket in all three modes). **12.3 remains
+> open**: hook-less processes (tinker, custom shutdown paths) still drop the in-memory
+> deferred hold — the bucket paths cover the configured modes, not this fallback shape.
 
 ### Bug 13 (declare breakage, 0.1.6): the compiler emits
 `x-delivery-limit` for classic queues — RabbitMQ rejects the declare
@@ -539,6 +626,12 @@ routing but late-release risk; `plugin` = correct when installed, **silent total
 when absent (bug 12.1). goopil's #210/#211 (quantization floor + keep-alive redeclare)
 address parts of this on their branch.
 
+> **Status after 0.3.4:** 15-auto is **dead** — #279 resolves `auto` against the broker at
+> connection compile time and degrades it to the ttl bucket queues when the plugin is absent,
+> so the main-queue early-execution window no longer exists (live-verified 2026-09-13:
+> `later(10)` on a plugin-less broker went straight into the bucket; main queue empty until the
+> deadline). 15.2 stands: quorum-TTL release is still a floor with no ceiling on an idle broker.
+
 ### Bug 16 (flush contract break, 0.2.1): the publish buffer no longer age-flushes — a lone publish is retained until the next publish or pool close
 
 > **FIXED in 0.2.2 — verified 2026-09-11.** The ext enforces the age deadline with a
@@ -612,6 +705,12 @@ Read-through:
   side safe and blind are indistinguishable on unroutables, which defeats the point of
   the mode. Candidate finding: `mandatory` returns should surface as an exception (or at
   least a counter the app can read).
+  **0.3.3/0.3.4 update (#252, #278):** the outcome is now observable — the doctor reads
+  `message_stats.return_unroutable` on the publish exchange (fail under safe, warn under
+  unsafe/blind), and `RabbitMqQueue::__destruct()` logs every never-surfaced return at
+  teardown (`error` level, `kind`/`message_id`/`message` context). The synchronous typed
+  throw stays limited to `bulk()`/explicit `flush()`; the pipelined path keeps its
+  replay-on-recovery contract.
 - Probe D is the *simple* clear-then-push shape (bug 10.3's race needs a flush actually
   in flight when `clear()` runs — covered by `ChildProcessReproTest`, not by this matrix).
 - E across all modes is the 0.2.2 shape of the old bug 12.4: the child-exit teardown now
@@ -634,6 +733,9 @@ Read-through:
   reject it, assert the DLQ receives it. It would have caught the lab's dead wiring immediately, and it is the only
   check that exercises the whole chain (queue args → DLX → binding → DLQ)
   instead of inspecting its parts.
+  **Implemented:** #219/#271 shipped the canary in 0.3.3; its head-of-line false-fail was fixed in #276 (0.3.4,
+  bulk scan + coverage-aware verdicts). Hygiene debt remains: stale canaries accumulate in the DLQ and eventually
+  outgrow the scan window (#288).
 
 ## Notes (not bugs)
 
@@ -670,6 +772,8 @@ Read-through:
 - `rabbit-rs:doctor` warns `worker resolves to Horizon\RabbitMqQueue through the
   package defaults … inheritance trap` — but default inheritance is exactly what the v0.1.1 fix (#2 above) implemented.
   The lint contradicts the shipped, documented behavior; make it informational or drop it.
+  **Resolved in 0.3.4:** the check now prints `[ok] worker class: … (resolved through the package defaults)` —
+  informational, no longer a false warn.
 - `rabbit-rs:work` never self-terminates: `--max-jobs`/`--max-time` recycle the child (clean exit → immediate restart,
   per the 0.0.9 fix) and the supervisor keeps running. Fine for production daemons; surprising in CI. A
   `--stop-when-empty` (or honoring `--max-time` at supervisor level) would help.
