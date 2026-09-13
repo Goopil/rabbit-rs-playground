@@ -685,6 +685,19 @@ Read-through:
 
 ## Verdict
 
+**0.3.4:** the agent-PR wave lands in a dist (#276 canary bulk-scan, #278 safe teardown surfacing,
+#279 delay-plugin guards, #280 topology post-condition verification, #281 sampler TTL cache) and the
+live roast found two things. The canary works as designed behind a backlog (3× `[ok]` after purging)
+but **self-sandbags**: every doctor run deposits a canary that never leaves the DLQ, the playground's
+accumulated 188 messages outgrew the 100-message scan window, and the check degraded to permanent
+`inconclusive` on every connection of that broker (#288 — a probe that dies of its own byproduct; a
+dedicated canary DLQ is the deterministic fix). And `--once` needs roughly **twice the passes** to
+converge under quorum lag (215 jobs: 204/4/6/1 over 4 passes vs 208/0 over 2 on 0.3.3): #281's 2 s
+sampler cache makes a stale-0 or failed probe authoritative, and the final drain check exits on the
+cached empty reading instead of re-probing (#287 — silent exit 0 with real work pending, `/get`-verified).
+The delay path is clean live: `auto` without the plugin degraded to the ttl bucket queues at compile
+(#279), the bucket appeared on demand, and the 3 delayed jobs landed on the main queue at the deadline.
+
 **0.3.3:** #270 ships in a dist and is validated live here — 215 jobs through `--once --max-workers=4`
 drained 208 in pass 1 with the known quorum-stats convergence residual (7), and pass 2 finished the queue
 (`ready: 0`, twice reproduced). But the release's headline doctor canary (#219, #271) **false-failed out of
