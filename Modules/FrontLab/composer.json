@@ -1,10 +1,9 @@
 {
     "name": "nwidart/frontlab",
-    "description": "",
+    "description": "Lab dashboard: Horizon stats, queue depths and the dispatch panel",
     "authors": [
         {
-            "name": "Nicolas Widart",
-            "email": "n.widart@gmail.com"
+            "name": "Goopil"
         }
     ],
     "extra": {

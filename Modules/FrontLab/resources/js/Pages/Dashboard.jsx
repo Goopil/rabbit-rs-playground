@@ -7,8 +7,8 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 const JOBS = ['default', 'high-priority'];
-const CONNECTIONS = ['redis-sentinel', 'rabbit-rs', 'both'];
-const QUEUES = ['default', 'high-priority', 'bulk'];
+const CONNECTIONS = ['redis-sentinel', 'rabbit-rs', 'rabbit-rs-work', 'rabbit-rs-ia', 'both'];
+const QUEUES = ['default', 'high-priority', 'bulk', 'work', 'ia-summary', 'ia-embed'];
 
 function StatCard({ label, value, accent = '' }) {
     return (
