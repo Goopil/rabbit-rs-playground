@@ -1,0 +1,20 @@
+{
+    "name": "nwidart/sentinelexamples",
+    "description": "Didactic usage examples for goopil/laravel-redis-sentinel: connection resolution, cache round-trip",
+    "authors": [
+        {
+            "name": "Goopil"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\SentinelExamples\\": "app/"
+        }
+    }
+}

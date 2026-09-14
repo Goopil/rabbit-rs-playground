@@ -1,0 +1,11 @@
+{
+    "name": "SentinelExamples",
+    "alias": "sentinelexamples",
+    "description": "Didactic usage examples for goopil/laravel-redis-sentinel",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\SentinelExamples\\Providers\\SentinelExamplesServiceProvider"
+    ],
+    "files": []
+}

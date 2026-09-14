@@ -4,5 +4,6 @@
     "FrontLab": true,
     "SafetyLab": true,
     "LifecycleLab": true,
-    "RabbitRsExamples": true
+    "RabbitRsExamples": true,
+    "SentinelExamples": true
 }
