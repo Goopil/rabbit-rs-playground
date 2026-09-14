@@ -90,7 +90,7 @@ RUN curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o /usr
     && chmod +x /usr/local/bin/pie
 
 # Install the Rabbit RS native extension (pinned to the 0.3 series)
-RUN pie install goopil/rabbit-rs-native:^0.3.4
+RUN pie install goopil/rabbit-rs-native:^0.3.5
 
 # Verify the extension is loaded
 RUN php --ri rabbit_rs

@@ -193,6 +193,14 @@ return [
             'password' => env('RABBIT_RS_PASS', 'guest'),
             'exchange' => 'laravel.jobs',
             'routing_key' => '{queue}',
+            /* Context isolation: the roast context owns its dead-letter
+               topology so canary deposits and test failures never mix with
+               Horizon's failed-jobs stream. */
+            'dead_letter' => [
+                'exchange' => 'roast.dead',
+                'queue' => 'roast-dead',
+                'routing_key' => 'roast-dead',
+            ],
         ],
 
     ],
