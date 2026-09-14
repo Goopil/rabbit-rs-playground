@@ -153,22 +153,28 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
 - **`--max-jobs`/`--max-time` still only recycle the child** without stopping the supervisor —
   by design now (`--stop-when-empty` is the CI mode).
 
-### Fixed by the 2026-09-14 wave (merged to main, pending playground verification at the 0.3.5 release)
+### Fixed by the 2026-09-14 wave (merged to main, **roast-verified on the v0.3.5 dist**)
 
 - **#287 / #291** — `--once` re-probes the depth uncached before the final drain decision; a
   stale memoized 0 or a memoized failed probe can no longer end the drain with work pending;
   a fully failed fresh probe retries within the bounded re-arm budget.
+  **Verified 2026-09-14:** a 215-job drain converged in a single pass (0.3.3's own baseline was
+  208/7 → 2 passes); a 10-job drain after a queue re-declare also converged in one pass.
 - **#290 / #294** — `RabbitMqQueue::stats()` surfaces the native counters (`returns_total`,
   `dropped_publications_total`) to userland; `rabbit-rs:status` reports the drop counter and
-  warns on non-zero.
+  warns on non-zero. **Verified:** `rabbit-rs:status` prints `returns` / `dropped publications`
+  per connection.
 - **#288 / #292** — the doctor canary verifies through a doctor-owned `rabbit-rs.canary.<hash>`
-  DLQ (bound to the configured DLX, purged + deleted every run) with tiered verdicts: found on
-  the configured DLQ → ok; only in the canary DLQ (configured backlog deeper than the scan
-  window, foreign count reported) → warn; never reaches it → decisive fail.
+  DLQ (bound to the configured DLX, purged + deleted every run) with tiered verdicts.
+  **Verified:** `[ok] delivered, rejected, and received on the configured DLQ` with zero canary
+  residue after three runs; the decisive-fail branch proved itself live — when the roast
+  connection's queue args still pointed at the old DLX while the config pointed elsewhere, the
+  check hard-failed with the exact broken-wiring diagnosis instead of a stale inconclusive.
 - **#285 / #293** — admin/consumer acquisition no longer discards typed coordinator errors: a
   permanently failed pool fails admin calls immediately with its published reason instead of
   raw lapin `invalid connection state: Closed`; the 403→FailedPermanent classification stays by
-  design (red-team audit).
+  design (red-team audit). **Verified:** every doctor/topology run on 0.3.5 surfaces only the
+  package's classified texts.
 - **#253** closed as complete (reconciliation close-out) — its remaining live thread (the
   flush-timer re-measure) continues in #282.
 
