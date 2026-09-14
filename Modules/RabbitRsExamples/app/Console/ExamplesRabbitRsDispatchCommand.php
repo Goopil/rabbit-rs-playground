@@ -35,14 +35,20 @@ class ExamplesRabbitRsDispatchCommand extends Command
         }
 
         $queues = ['default', 'high-priority', 'bulk'];
-        foreach ($connections as $connection) {
-            foreach ($queues as $queue) {
-                for ($i = 0; $i < $count; $i++) {
-                    ProcessOrderJob::dispatch(['order' => uniqid('order-')])
-                        ->onConnection($connection)
-                        ->onQueue($queue);
+        try {
+            foreach ($connections as $connection) {
+                foreach ($queues as $queue) {
+                    for ($i = 0; $i < $count; $i++) {
+                        ProcessOrderJob::dispatch(['order' => uniqid('order-')])
+                            ->onConnection($connection)
+                            ->onQueue($queue);
+                    }
                 }
             }
+        } catch (\Throwable $e) {
+            $this->error("Dispatch failed: {$e->getMessage()} (is the stack up? make up)");
+
+            return 1;
         }
 
         $this->info("Dispatched {$count} order(s) × ".count($queues).' queues × '.count($connections).' connection(s).');
