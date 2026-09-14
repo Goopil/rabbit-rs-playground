@@ -3,8 +3,7 @@
     "description": "Terminating-close repros for rabbit-rs publish buffers and deferred publishes",
     "authors": [
         {
-            "name": "Nicolas Widart",
-            "email": "n.widart@gmail.com"
+            "name": "Goopil"
         }
     ],
     "extra": {

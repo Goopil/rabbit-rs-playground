@@ -1,10 +1,9 @@
 {
     "name": "nwidart/rabbitrs",
-    "description": "",
+    "description": "App-side wiring for rabbit-rs: broker topology setup, sample jobs and demo dispatch",
     "authors": [
         {
-            "name": "Nicolas Widart",
-            "email": "n.widart@gmail.com"
+            "name": "Goopil"
         }
     ],
     "extra": {

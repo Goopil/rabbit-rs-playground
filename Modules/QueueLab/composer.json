@@ -1,10 +1,9 @@
 {
     "name": "nwidart/queuelab",
-    "description": "",
+    "description": "Generic publish utilities for the queue lab: stress command and StressJob",
     "authors": [
         {
-            "name": "Nicolas Widart",
-            "email": "n.widart@gmail.com"
+            "name": "Goopil"
         }
     ],
     "extra": {
