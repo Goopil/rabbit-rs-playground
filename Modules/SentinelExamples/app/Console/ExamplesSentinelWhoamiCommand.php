@@ -15,6 +15,13 @@ class ExamplesSentinelWhoamiCommand extends Command
     {
         $snapshot = SentinelWhoami::captureOrError();
 
+        if (str_starts_with($snapshot['connection'], 'unreachable:')) {
+            $this->error('  sentinel resolution failed: '.substr($snapshot['connection'], strlen('unreachable:')));
+            $this->line('  Check the Sail stack: make up — sentinels are sentinel-1/2/3');
+
+            return 1;
+        }
+
         $this->info('Sentinel-backed connection "default":');
         $this->line('  service "'.$snapshot['service'].'"');
         $this->line('  sentinels: '.implode(', ', $snapshot['sentinels']));
