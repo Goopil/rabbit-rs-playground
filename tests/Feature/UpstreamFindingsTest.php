@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use Goopil\RabbitRs\Laravel\Config\ConnectionCompiler;
+use Goopil\RabbitRs\Laravel\Exceptions\DelayPluginMissingException;
 use Goopil\RabbitRs\Laravel\Exceptions\QueueException;
 use Goopil\RabbitRs\Laravel\Horizon\RabbitMqQueue;
+use Goopil\RabbitRs\Laravel\Support\DelayPluginGuard;
 use Illuminate\Queue\QueueManager;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -250,24 +252,33 @@ class UpstreamFindingsTest extends TestCase
         $this->assertGreaterThanOrEqual($before + 2, $depth);
     }
 
-    public function test_bug12_plugin_delay_mode_delivers_deferred_jobs(): void
+    public function test_bug12_plugin_delay_mode_refuses_loudly_without_the_broker_plugin(): void
     {
+        // Bug 12.1 flipped (fixed in #279, verified on the 0.3.5 dist):
+        // `plugin` mode without the broker plugin used to SILENTLY LOSE
+        // deferred jobs — the first delayed publish now refuses loudly with
+        // DelayPluginMissingException (management-API proven, verdict cached
+        // per process). The guard asserts the loud refusal; if the plugin
+        // ever lands on the lab broker, re-pin the delivery contract.
         $this->setDelayMode('plugin');
-        $queue = Queue::connection('rabbit-rs-work');
-        $before = $this->drainAndSettle($queue);
 
-        $queue->later(2, new StressJob(random_int(1, 999)), '', 'work');
-        $queue->later(2, new StressJob(random_int(1, 999)), '', 'work');
+        try {
+            $queue = Queue::connection('rabbit-rs-work');
+            $this->drainAndSettle($queue);
 
-        $depth = $this->waitForDeferredDelivered($queue, 'work', 2, $before);
+            $queue->later(2, new StressJob(random_int(1, 999)), '', 'work');
+        } catch (DelayPluginMissingException $e) {
+            $this->assertInstanceOf(DelayPluginMissingException::class, $e);
 
-        if ($depth < $before + 2) {
-            $this->markTestSkipped(
-                'bug 12.1: delay.mode=plugin without the broker plugin silently loses deferred jobs (docs/upstream-rabbit-rs-laravel.md)',
-            );
+            return;
+        } finally {
+            DelayPluginGuard::reset();
         }
 
-        $this->assertGreaterThanOrEqual($before + 2, $depth);
+        $this->markTestSkipped(
+            'the rabbitmq_delayed_message_exchange plugin is installed on the broker — '
+            .'re-pin the plugin delivery contract (bug 12.1 is dead upstream since #279)',
+        );
     }
 
     public function test_blind_mode_drops_unroutable_publishes_silently(): void
