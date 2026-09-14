@@ -55,8 +55,11 @@ vendor/bin/sail artisan horizon:terminate
 | `FrontLab`     | HTTP dispatch UI (connection-name validation)               | —                              |
 
 Command signatures are stable — they are referenced by the upstream doc shared
-with goopil. New probe domains get their own module (`DelayLab` / `TopologyLab`
-are the planned homes), never lumped into an existing lab.
+with goopil. New probe domains get their own module, never lumped into an
+existing lab. (The once-planned `TopologyLab` / `DelayLab` never materialized:
+the topology surface belongs to the `RabbitRs` module + the `RabbitRs*Topology*Test`
+files under `tests/Feature/`, and the delay domain has no Laravel-side code —
+it lives in the in-suite bug-15 guards and the `node/ck15-*` clean-state probes.)
 
 ## Config switches under test (`config/rabbit-rs.php` via env)
 
@@ -111,12 +114,12 @@ manual (candidates for a future `TopologyLab` module):
 |---|---|---|
 | `topology_mode` external / declare | covered | `UpstreamFindingsTest` (declare + `rabbit-rs:topology`) |
 | `queue_type` quorum + **classic** | covered — compile pins + live classic round-trip (API pre-declare, driver publish, API poll) | `RabbitRsTopologyConfigTest` |
-| `delivery_limit` + dead_letter wiring | covered at compile level (+ broker `x-delivery-limit` verified in the doc) | `RabbitRsTopologyConfigTest` |
-| Dead-letter END TO END (poison → DLX → `failed-jobs`) | manual only — needs ~20 redeliveries; verified in doc bug 4 | — |
-| `queue_durable=false` | not covered — non-durable queues die with their declaring connection; needs `rabbit-rs:topology --fix` (blocked by bug 11's 30s gate) | — |
-| `delay.buckets` custom + `max_buckets` validation | compile-time covered; 0.2.0 creates real buckets but timing is untestable on an idle broker (lazy quorum TTL, bug 15) | `RabbitRsTopologyConfigTest` |
+| `delivery_limit` + dead_letter wiring | covered — compile pins, broker `x-delivery-limit`, live DLX pair contract (declare → args → DLQ binding) | `RabbitRsTopologyConfigTest` + `RabbitRsLiveTopologyTest::test_the_driver_declares_a_coherent_dlx_pair` |
+| Dead-letter END TO END (poison → DLX → `failed-jobs`) | covered — poison publish, terminal reject inside `pop()`, DLQ depth asserted | `RabbitRsLiveTopologyTest::test_poison_deliveries_dead_letter_to_failed_jobs` |
+| `queue_durable=false` + inherited `delivery_limit` | guarded — the classic/non-durable combo must stay undeclarable (bug 13; flipped green since 0.2.1) | `RabbitRsLiveTopologyTest::test_classic_queues_reject_the_inherited_delivery_limit_at_declare` |
+| `delay.buckets` custom + `max_buckets` validation | compile-time covered; 0.2.0 creates real buckets but timing is untestable on an idle broker (lazy quorum TTL, bug 15) — straight-to-bucket pinned in-suite | `RabbitRsTopologyConfigTest` + `UpstreamFindingsTest::test_bug15_ttl_deferred_jobs_go_straight_to_the_bucket` |
 | Invalid config rejection (unknown keys, bad mode/type/wait_timeout, delivery_limit without dead_letter) | covered | `RabbitRsTopologyConfigTest` |
-| Queue shared by two connections (advertised dual-consumption) | compile-level covered; live dual-consume untested | `RabbitRsTopologyConfigTest` |
+| Queue shared by two connections (advertised dual-consumption) | covered — compile pins + live competing consumers draining one physical queue | `RabbitRsTopologyConfigTest` + `RabbitRsLiveTopologyTest::test_two_connections_consume_the_same_physical_queue` |
 | Subscription `weight` | not covered — weights only observed in doc bug 8's round-robin (`priority_class`/`starvation_after` removed in 0.2.0) | — |
 | `prefetch` under load | not covered | — |
 | Runtime config swap (connection re-resolve after `config()->set`) | covered | `UpstreamFindingsTest` |
@@ -135,6 +138,13 @@ vendor/bin/sail artisan test --group upstream     # pins + bug guards only
 - `tests/Feature/RabbitRsTopologyConfigTest.php` — broker-free config pins
   (compiler accepts/rejects, compiled topology shape) + one live classic-queue
   round-trip; also documents the chunky async flush (bug 10: 47-48/50 waves)
+- `tests/Feature/RabbitRsLiveTopologyTest.php` — live broker behavior the
+  compile pins cannot reach: poison → DLX → `failed-jobs`, competing consumers
+  on a shared physical queue, coherent DLX pair, classic/`delivery_limit`
+  declare guard
+- `tests/Feature/LabDispatchTest.php` + `SafetyCommandTest.php` — the lab
+  surfaces (dispatch endpoint validation + Horizon tags, safety command as a
+  fresh child process)
 - The suite hits the real broker: keep `rabbitmq-simple` up, expect ~100 s
 
 ## SSR roast (clusterkit)

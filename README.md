@@ -9,7 +9,7 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 | Program | Role |
 |---------|------|
 | `php` | Octane/Swoole HTTP server (port 80) |
-| `horizon` | Queue workers for **all** queues on both transports — `redis-sentinel` and `rabbit-rs` (same flat names), via `RABBIT_RS_WORKER=horizon` (requires `goopil/rabbit-rs-laravel` >= 0.1.1) |
+| `horizon` | Queue workers on `redis-sentinel` + `rabbit-rs` for `default` / `high-priority` / `bulk` (flat names, identical on both transports), via `RABBIT_RS_WORKER=horizon` (requires `goopil/rabbit-rs-laravel` >= 0.1.1) |
 | `ssr` | Node ClusterKit orchestrator running the Inertia SSR server (`POST /render` on 127.0.0.1:13715) |
 
 ### Valkey HA set (compose)
@@ -18,15 +18,30 @@ Everything runs in the single `laravel.test` Sail container under supervisord:
 
 ### RabbitMQ infra
 
-Single node (`rabbitmq-simple`), one vhost, one exchange (`laravel.jobs`), 3 quorum queues (`default`, `high-priority`, `bulk`) — **flat queue names, identical on both transports**. Horizon consumes BOTH connections (`supervisor-horizon`/`supervisor-bulk` on redis-sentinel, `supervisor-rabbit` on rabbit-rs): all jobs appear in the Horizon dashboard.
+Single node (`rabbitmq-simple`), one vhost, exchange `laravel.jobs` (direct, publish-side), `dead-letters` (fanout catch-all — see the DLX trap in `docs/PLAYGROUND.md`), 7 quorum queues (`default`, `high-priority`, `bulk`, `work`, `ia-summary`, `ia-embed`, `queue-lab-safety`) + the `failed-jobs` dead-letter queue. **Flat queue names, identical on both transports.**
+
+Consumer map:
+
+| connection | queues | consumer |
+|------------|--------|----------|
+| `redis-sentinel` | default, high-priority, bulk | Horizon (`supervisor-horizon` / `supervisor-bulk`) |
+| `rabbit-rs` | default, high-priority, bulk | Horizon (`supervisor-rabbit`) |
+| `rabbit-rs-work` | work | manual `queue:work rabbit-rs-work` |
+| `rabbit-rs-ia` | ia-summary, ia-embed | manual `rabbit-rs:work --connection=rabbit-rs-ia` |
+
+All jobs dispatched to the two Horizon connections appear in the Horizon dashboard. The `work`/`ia` consumers are manual lab processes — read `docs/PLAYGROUND.md` ("The consumer map") before any manual run.
 
 ## Modules
 
 | Module | Contents |
 |--------|----------|
-| `RabbitRs` | All rabbit-rs jobs + commands (`rabbit-rs:demo --connection=redis-sentinel|rabbit-rs|both`) |
-| `QueueLab` | `queue-lab:stress` burst command + sentinel event listeners |
+| `RabbitRs` | App-side wiring, broker topology setup, sample jobs + demo dispatch (`rabbit-rs:setup-topology`, `rabbit-rs:demo --connection=redis-sentinel\|rabbit-rs\|both`) |
+| `QueueLab` | `queue-lab:stress` burst command + `StressJob` |
+| `SafetyLab` | Safety-mode comparison blind / unsafe / safe (`queue-lab:safety`) |
+| `LifecycleLab` | Terminating-close repros: publish-and-exit + broker poll (`queue-lab:dispatch-and-exit`) |
 | `FrontLab` | `/lab` dashboard (Horizon stats, queue depths, dispatch panel, 3s live polling) |
+
+One lab module per probe domain — new domains get their own module, never lumped into an existing lab (see `docs/PLAYGROUND.md`).
 
 ## Quick Start
 
@@ -68,6 +83,21 @@ sail artisan rabbit-rs:demo --connection=both             # → both
 ```
 
 From the UI: `/lab` dispatch panel posts to `POST /lab/dispatch` (`{job, connection, queue, count}`).
+
+## Tests
+
+```bash
+sail artisan test --compact             # full suite (~100s) — RabbitMQ broker must be up
+sail artisan test --group upstream      # pins + bug guards only
+```
+
+- `tests/Feature/UpstreamFindingsTest.php` — API-surface pins (green) + bug guards (skipped while the bug is live, auto-activate when the upstream fix lands)
+- `tests/Feature/RabbitRsLiveTopologyTest.php` — live broker behavior: poison → DLX → `failed-jobs` dead-lettering, competing consumers on a shared physical queue, coherent DLX pair contract, classic/`delivery_limit` declare guard
+- `tests/Feature/RabbitRsTopologyConfigTest.php` — broker-free config pins (compiler accepts/rejects, compiled topology shape) + one live classic-queue round-trip
+- `tests/Feature/ChildProcessReproTest.php` — spawns real artisan children and polls the Management API; covers the terminating-close findings
+- `tests/Feature/LabDispatchTest.php` — `/lab/dispatch` endpoint (connection/queue validation, Horizon tags)
+
+The suite hits the real broker: keep `rabbitmq-simple` up. Coverage details and manual-only surfaces live in `docs/PLAYGROUND.md` (coverage matrix).
 
 ## Chaos Testing (Sentinel Failover)
 
@@ -113,3 +143,7 @@ make chaos-heal        # old master rejoins as replica
 
 - Bugs found + fixes suggested: `docs/upstream-rabbit-rs-laravel.md`, `docs/upstream-laravel-redis-sentinel.md`
 - Feature proposals: `docs/features-rabbit-rs.md`, `docs/features-clusterkit.md`, `docs/features-laravel-redis-sentinel.md`
+
+## License
+
+MIT — see [LICENSE](LICENSE).

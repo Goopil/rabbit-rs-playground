@@ -1,0 +1,19 @@
+<?php
+
+namespace Tests\Feature;
+
+// use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class RootRedirectTest extends TestCase
+{
+    /**
+     * A basic test example.
+     */
+    public function test_the_application_redirects_to_the_lab(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertRedirect(route('lab.dashboard'));
+    }
+}
