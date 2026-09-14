@@ -2,7 +2,9 @@
 
 namespace Modules\RabbitRsExamples\Providers;
 
+use Modules\RabbitRsExamples\Console\ExamplesRabbitRsDelayCommand;
 use Modules\RabbitRsExamples\Console\ExamplesRabbitRsDispatchCommand;
+use Modules\RabbitRsExamples\Console\ExamplesRabbitRsFailCommand;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class RabbitRsExamplesServiceProvider extends ModuleServiceProvider
@@ -18,5 +20,7 @@ class RabbitRsExamplesServiceProvider extends ModuleServiceProvider
      */
     protected array $commands = [
         ExamplesRabbitRsDispatchCommand::class,
+        ExamplesRabbitRsDelayCommand::class,
+        ExamplesRabbitRsFailCommand::class,
     ];
 }

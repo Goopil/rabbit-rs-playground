@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Queue;
+use Modules\RabbitRsExamples\Jobs\DelayedReportJob;
+use Modules\RabbitRsExamples\Jobs\FlakyJob;
 use Modules\RabbitRsExamples\Jobs\ProcessOrderJob;
 use Tests\TestCase;
 
@@ -30,5 +32,23 @@ class ExamplesRabbitRsCommandsTest extends TestCase
 
         $this->assertSame(1, $exitCode);
         $this->assertStringContainsString('Invalid --connection', Artisan::output());
+    }
+
+    public function test_delay_command_pushes_a_delayed_report_job(): void
+    {
+        Queue::fake();
+
+        Artisan::call('examples:rabbit-rs:delay', ['--seconds' => 30]);
+
+        Queue::assertPushed(DelayedReportJob::class, 1);
+    }
+
+    public function test_fail_command_pushes_a_flaky_job_on_the_bulk_queue(): void
+    {
+        Queue::fake();
+
+        Artisan::call('examples:rabbit-rs:fail');
+
+        Queue::assertPushedOn('bulk', FlakyJob::class);
     }
 }
