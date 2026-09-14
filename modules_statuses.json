@@ -5,5 +5,6 @@
     "SafetyLab": true,
     "LifecycleLab": true,
     "RabbitRsExamples": true,
-    "SentinelExamples": true
+    "SentinelExamples": true,
+    "ClusterkitExamples": true
 }

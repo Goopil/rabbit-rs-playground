@@ -1,0 +1,20 @@
+{
+    "name": "nwidart/clusterkitexamples",
+    "description": "Didactic usage examples for @goopil/clusterkit: SSR pool renders and the demo page",
+    "authors": [
+        {
+            "name": "Goopil"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\ClusterkitExamples\\": "app/"
+        }
+    }
+}

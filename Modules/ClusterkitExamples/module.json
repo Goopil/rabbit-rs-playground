@@ -1,0 +1,11 @@
+{
+    "name": "ClusterkitExamples",
+    "alias": "clusterkitexamples",
+    "description": "Didactic usage examples for @goopil/clusterkit (Inertia SSR orchestration)",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\ClusterkitExamples\\Providers\\ClusterkitExamplesServiceProvider"
+    ],
+    "files": []
+}
