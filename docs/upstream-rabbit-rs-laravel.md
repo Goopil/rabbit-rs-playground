@@ -144,28 +144,33 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
   observed minutes past the deadline). Broker semantics — **documented limitation, non-goal**
   per #253 (mitigated by the keep-alive redeclare of live bucket queues, #211); the
   pass-or-skip guards in the delay tests encode it.
-- **#290 — expose `returned_publications_total` / `dropped_publications_total` in
-  `Pool::stats()` + doctor.** The last actionable item from the legacy dossier: mandatory
-  returns are only visible through a follow-up operation and drops are unreachable from PHP.
 - **#282 — consume throughput: the 3× driver gap is supply-side wake-chain latency** (profiling
-  findings + optimization leads; perf investigation, not a correctness bug).
-- **#285 — the topology verify probe races the declare bring-up teardown**: raw lapin
-  `invalid connection state: Closed` leaks through admin ops instead of the coordinator's
-  classified error, and a single 403 during bring-up dooms the whole pool (`FailedPermanent`).
-  Test-side relaxed in #286; the extension-side items are open.
-- **#287 — `--once` needs ~2× the passes to converge on 0.3.4** (215 jobs: 204/4/6/1 over 4
-  passes vs 208/0 over 2 on 0.3.3): the #281 sampler cache makes a stale-0 or failed probe
-  authoritative for 2 s and the final drain check exits on it — silent exit 0 with real work
-  pending, `/get`-verified. Needs a fresh read for the exit decision.
-- **#288 — the doctor canary self-sandbags**: each run deposits a canary that never leaves the
-  DLQ; the playground accumulated 188 messages and outgrew the 100-message scan window, degrading
-  every connection of the broker to permanent `inconclusive`. Deterministic fix: a dedicated
-  canary DLQ per connection; cheapest: count foreign messages during the scan and say so.
+  findings + optimization leads; perf investigation, not a correctness bug). The flush-timer
+  latency re-measure (#253's item 6) is folded into this investigation — #253 itself is closed
+  (2026-09-14 reconciliation close-out).
 - **Flush-timer latency caveat** (not a bug, flagged since 0.2.2): dispatch→broker is ~0–5 s
-  under load, not the 1 ms `flush_interval` contract — #253 asks for a re-measure on current
-  main before deciding whether anything beyond a doc note is warranted.
+  under load, not the 1 ms `flush_interval` contract — re-measure rides with #282.
 - **`--max-jobs`/`--max-time` still only recycle the child** without stopping the supervisor —
   by design now (`--stop-when-empty` is the CI mode).
+
+### Fixed by the 2026-09-14 wave (merged to main, pending playground verification at the 0.3.5 release)
+
+- **#287 / #291** — `--once` re-probes the depth uncached before the final drain decision; a
+  stale memoized 0 or a memoized failed probe can no longer end the drain with work pending;
+  a fully failed fresh probe retries within the bounded re-arm budget.
+- **#290 / #294** — `RabbitMqQueue::stats()` surfaces the native counters (`returns_total`,
+  `dropped_publications_total`) to userland; `rabbit-rs:status` reports the drop counter and
+  warns on non-zero.
+- **#288 / #292** — the doctor canary verifies through a doctor-owned `rabbit-rs.canary.<hash>`
+  DLQ (bound to the configured DLX, purged + deleted every run) with tiered verdicts: found on
+  the configured DLQ → ok; only in the canary DLQ (configured backlog deeper than the scan
+  window, foreign count reported) → warn; never reaches it → decisive fail.
+- **#285 / #293** — admin/consumer acquisition no longer discards typed coordinator errors: a
+  permanently failed pool fails admin calls immediately with its published reason instead of
+  raw lapin `invalid connection state: Closed`; the 403→FailedPermanent classification stays by
+  design (red-team audit).
+- **#253** closed as complete (reconciliation close-out) — its remaining live thread (the
+  flush-timer re-measure) continues in #282.
 
 ## Resolved upstream — verified in this playground
 
