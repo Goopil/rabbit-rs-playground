@@ -1,0 +1,11 @@
+{
+    "name": "RabbitRsExamples",
+    "alias": "rabbitrsexamples",
+    "description": "Didactic usage examples for goopil/rabbit-rs-laravel",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\RabbitRsExamples\\Providers\\RabbitRsExamplesServiceProvider"
+    ],
+    "files": []
+}

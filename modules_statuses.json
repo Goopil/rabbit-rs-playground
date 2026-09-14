@@ -3,5 +3,6 @@
     "QueueLab": true,
     "FrontLab": true,
     "SafetyLab": true,
-    "LifecycleLab": true
+    "LifecycleLab": true,
+    "RabbitRsExamples": true
 }
