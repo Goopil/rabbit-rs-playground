@@ -4,6 +4,23 @@
 > fixed-and-verified vs still open across every finding in this dossier — lives in
 > **"Current status — post-v0.3.4"** below. Session notes for v0.3.2 and earlier follow.
 >
+> **Session 2026-09-15 — v0.3.6** (package + ext 0.3.6 lockstep). Ships the whole fix wave
+> (#296 ack-flush perf, #301 signal fix, #302 consumer reliability, #303 closed-set guard +
+> lapin 4.11 re-land, #304 publisher-actor reason, #300 **adaptive prefetch applied**) plus
+> the CI cache wave (#297/#298/#299). **Competitive roast, 3 legs, all contracts re-verified
+> on the 0.3.6 dist**: drain 215 → 0 in one pass (#287), doctor canary `[ok]` + isolated
+> roast wiring (#288), `status` counters (#290). **The adaptive prefetch is real:**
+> adaptive 16→2000 on a 3000-job drain sustained **105 jobs/s** vs 12.9 jobs/s pinned at
+> fixed-16 — the mid-stream window resize works (×8). **Cut-recovery leg (network cut 12 s
+> mid-drain, broker alive — the #248/#303 scenario): recovery holds, zero message loss,
+> no terminal leak past the catch contract** — but the roast exposed three new upstream
+> bugs, filed: #308 (stop-when-empty abandons its in-flight window at the cut boundary —
+> ~prefetch messages stuck ready, 2/2 runs), #309 (closed-set pop retry storm — 889/48
+> ERROR-level entries per recovery), #310 (documented `RABBIT_RS_PREFETCH` env JSON is
+> broken — string cast to int throws at boot, child dies silently). Playground now carries
+> a `rabbit-rs-cut` connection through the lab toxiproxy so the cut scenario replays in
+> two commands.
+>
 > **Session 2026-09-13 — v0.3.2** (package + ext 0.3.2 lockstep — the package now enforces
 > `EXTENSION_CONSTRAINT ^0.3.2` at runtime; the doctor reports the constraint as satisfied).
 > The headline is the **auto-scaling / one-shot feature (upstream PR #262)**: `rabbit-rs:work`
@@ -140,6 +157,18 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
 
 ### Still open
 
+- **#308 — stop-when-empty abandons its in-flight window at a network-cut boundary** (filed
+  2026-09-15): recovery holds and the drain resumes, but the child exits at the cut boundary
+  while ~prefetch messages sit unacked in its window; the broker requeues them after the
+  consumer is gone and nothing picks them up — the queue silently stops draining. 2/2 runs.
+  Correlation suspected with the #296 deferred ack flush.
+- **#309 — closed-set pop retry storm during recovery** (filed 2026-09-15): after a cut, the
+  pop path samples the dead generation hundreds of times (889/48 ERROR-level entries in two
+  runs of the same scenario) before the live generation serves; unbounded cadence, drowning
+  log noise.
+- **#310 — documented `RABBIT_RS_PREFETCH` env JSON is broken** (filed 2026-09-15): the
+  compiler casts any string prefetch to a positive int, so the documented JSON throws at
+  boot and the one-shot child dies with no output at all.
 - **15.2 — quorum-TTL release is a floor with no ceiling** (lazy expiry on an idle broker;
   observed minutes past the deadline). Broker semantics — **documented limitation, non-goal**
   per #253 (mitigated by the keep-alive redeclare of live bucket queues, #211); the
@@ -147,13 +176,19 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
 - **#282 — consume throughput: the 3× driver gap is supply-side wake-chain latency** (profiling
   findings + optimization leads; perf investigation, not a correctness bug). The flush-timer
   latency re-measure (#253's item 6) is folded into this investigation — #253 itself is closed
-  (2026-09-14 reconciliation close-out).
+  (2026-09-14 reconciliation close-out). **Roast note 2026-09-15:** the playground-side
+  throughput is window-limited at prefetch 16 (12.9 jobs/s sustained) and job-overhead-limited
+  at 256+ (~24 jobs/s for instant jobs); the adaptive window reaching 105 jobs/s on the same
+  harness shows the supply side is no longer the only lever.
 - **Flush-timer latency caveat** (not a bug, flagged since 0.2.2): dispatch→broker is ~0–5 s
-  under load, not the 1 ms `flush_interval` contract — re-measure rides with #282.
+  under load, not the 1 ms `flush_interval` contract — re-measure rides with #282. Roast
+  2026-09-15: dispatches of 215/300/3000 all flushed inside the 6 s settle window (ready
+  visible at first check); no regression observed.
 - **`--max-jobs`/`--max-time` still only recycle the child** without stopping the supervisor —
-  by design now (`--stop-when-empty` is the CI mode).
+  by design now (`--stop-when-empty` is the CI mode). Roast 2026-09-15 note: `--stop-when-empty`
+  has its own boundary bug under recovery (#308 above).
 
-### Fixed by the 2026-09-14 wave (merged to main, **roast-verified on the v0.3.5 dist**)
+### Fixed by the 2026-09-14 wave (merged to main, **roast-re-verified on the v0.3.6 dist**)
 
 - **#287 / #291** — `--once` re-probes the depth uncached before the final drain decision; a
   stale memoized 0 or a memoized failed probe can no longer end the drain with work pending;
