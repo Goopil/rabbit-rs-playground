@@ -644,16 +644,16 @@
         },
         {
             "name": "goopil/rabbit-rs-laravel",
-            "version": "v0.3.5",
+            "version": "v0.3.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Goopil/rabbit-rs-laravel",
-                "reference": "7b09bb8b6566acfdf639fb40af95eca3497aa06b"
+                "reference": "d06807dab6654f58ea532758738c3b7885d2621a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/7b09bb8b6566acfdf639fb40af95eca3497aa06b",
-                "reference": "7b09bb8b6566acfdf639fb40af95eca3497aa06b",
+                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/d06807dab6654f58ea532758738c3b7885d2621a",
+                "reference": "d06807dab6654f58ea532758738c3b7885d2621a",
                 "shasum": ""
             },
             "require": {
@@ -670,7 +670,7 @@
                 "phpstan/phpstan": "^2.1"
             },
             "suggest": {
-                "ext-rabbit_rs": "Required to dispatch and consume jobs (^0.3.5). composer install succeeds without it; connections fail at resolution time until the native extension is loaded (pie install goopil/rabbit-rs-native).",
+                "ext-rabbit_rs": "Required to dispatch and consume jobs (^0.3.6). composer install succeeds without it; connections fail at resolution time until the native extension is loaded (pie install goopil/rabbit-rs-native).",
                 "laravel/horizon": "Required to use the Horizon dashboard integration (worker=horizon)"
             },
             "type": "library",
@@ -691,7 +691,7 @@
                 "MIT"
             ],
             "description": "Laravel queue driver for the Rabbit RS native extension",
-            "time": "2026-09-14T05:18:53+00:00"
+            "time": "2026-09-15T18:59:00+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -5893,16 +5893,16 @@
         },
         {
             "name": "symfony/process",
-            "version": "v8.1.6",
+            "version": "v8.1.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/process.git",
-                "reference": "d863f5e70d7c87abb906ac11b61f83036093000b"
+                "reference": "10823b09358e690df4ff943e24e8492bb1019fc3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/process/zipball/d863f5e70d7c87abb906ac11b61f83036093000b",
-                "reference": "d863f5e70d7c87abb906ac11b61f83036093000b",
+                "url": "https://api.github.com/repos/symfony/process/zipball/10823b09358e690df4ff943e24e8492bb1019fc3",
+                "reference": "10823b09358e690df4ff943e24e8492bb1019fc3",
                 "shasum": ""
             },
             "require": {
@@ -5934,7 +5934,7 @@
             "description": "Executes commands in sub-processes",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/process/tree/v8.1.6"
+                "source": "https://github.com/symfony/process/tree/v8.1.7"
             },
             "funding": [
                 {
@@ -5954,7 +5954,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-21T17:47:34+00:00"
+            "time": "2026-09-02T12:40:29+00:00"
         },
         {
             "name": "symfony/psr-http-message-bridge",
