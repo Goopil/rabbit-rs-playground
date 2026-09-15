@@ -38,7 +38,7 @@ class ExampleController extends Controller
     {
         // Same contract as DashboardController::rabbitDepth: unreachable
         // infra degrades to an ok=false payload, never a 500.
-        return response()->json(SentinelWhoami::captureOrError() + ['ok' => true]);
+        return response()->json(SentinelWhoami::captureOrError());
     }
 
     private function dispatchMany(int $count): string

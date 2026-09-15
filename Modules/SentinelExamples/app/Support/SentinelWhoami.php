@@ -16,7 +16,7 @@ use Throwable;
 class SentinelWhoami
 {
     /**
-     * @return array{service: string, sentinels: list<string>, master: string, role: ?string, connection: string}
+     * @return array{service: string, sentinels: list<string>, master: string, role: ?string, connection: string, ok: bool}
      */
     public static function capture(): array
     {
@@ -39,9 +39,13 @@ class SentinelWhoami
             'master' => ($master['ip'] ?? '?').':'.($master['port'] ?? '?'),
             'role' => $info['role'] ?? null,
             'connection' => $info['master_host'] ?? '?',
+            'ok' => true,
         ];
     }
 
+    /**
+     * @return array{service: string, sentinels: list<string>, master: string, role: ?string, connection: string, ok: bool}
+     */
     public static function captureOrError(): array
     {
         try {
@@ -53,6 +57,7 @@ class SentinelWhoami
                 'master' => '?',
                 'role' => null,
                 'connection' => 'unreachable: '.$e->getMessage(),
+                'ok' => false,
             ];
         }
     }

@@ -62,5 +62,6 @@ class LabExamplesTest extends TestCase
         $response = $this->actingAs($user)->getJson('/lab/examples/sentinel');
 
         $response->assertOk()->assertJsonStructure(['service', 'master', 'role', 'connection', 'ok']);
+        $this->assertSame(true, $response->json('ok'));
     }
 }
