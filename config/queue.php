@@ -203,6 +203,29 @@ return [
             ],
         ],
 
+        /* Cut-recovery roast: routes through the lab's toxiproxy so tests can
+           cut the NETWORK while the broker stays up (the #248/#303 scenario).
+           Consumed by `rabbit-rs:work --connection=rabbit-rs-cut` only. */
+        'rabbit-rs-cut' => [
+            'driver' => 'rabbit-rs',
+            'queue' => 'cut-drain',
+            'hosts' => 'host.docker.internal:24508',
+            'management_url' => 'http://host.docker.internal:15675',
+            'vhost' => '/',
+            'username' => 'guest',
+            'password' => 'guest',
+            'exchange' => 'laravel.jobs',
+            'routing_key' => '{queue}',
+            /* Context isolation: owns its dead-letter topology like the roast
+               context (canaries and test failures never touch Horizon's
+               failed-jobs stream). */
+            'dead_letter' => [
+                'exchange' => 'cut.dead',
+                'queue' => 'cut-dead',
+                'routing_key' => 'cut-dead',
+            ],
+        ],
+
     ],
 
     /*
