@@ -39,6 +39,7 @@ All jobs dispatched to the two Horizon connections appear in the Horizon dashboa
 | `QueueLab` | `queue-lab:stress` burst command + `StressJob` |
 | `SafetyLab` | Safety-mode comparison blind / unsafe / safe (`queue-lab:safety`) |
 | `LifecycleLab` | Terminating-close repros: publish-and-exit + broker poll (`queue-lab:dispatch-and-exit`) |
+| `RabbitRsExamples` / `SentinelExamples` / `ClusterkitExamples` | Didactic usage examples per lib — `examples:*` commands + module READMEs (wiring cheatsheets) |
 | `FrontLab` | `/lab` dashboard (Horizon stats, queue depths, dispatch panel, 3s live polling) |
 
 One lab module per probe domain — new domains get their own module, never lumped into an existing lab (see `docs/PLAYGROUND.md`).
@@ -83,6 +84,8 @@ sail artisan rabbit-rs:demo --connection=both             # → both
 ```
 
 From the UI: `/lab` dispatch panel posts to `POST /lab/dispatch` (`{job, connection, queue, count}`).
+
+Usage examples: `/lab/examples` dispatches the example jobs (routing, delay, failure path) and shows the live sentinel snapshot.
 
 ## Tests
 
