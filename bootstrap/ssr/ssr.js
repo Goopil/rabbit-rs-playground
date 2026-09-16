@@ -1,6 +1,6 @@
+import { Head, Link, createInertiaApp, router, useForm, usePage } from "@inertiajs/react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { Dialog, DialogPanel, Transition, TransitionChild } from "@headlessui/react";
-import { Head, Link, createInertiaApp, router, useForm, usePage } from "@inertiajs/react";
 import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from "react";
 import ReactDOMServer from "react-dom/server";
 import { route as route$1 } from "ziggy-js";
@@ -15,6 +15,43 @@ var __exportAll = (all, no_symbols) => {
 	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
 	return target;
 };
+//#endregion
+//#region Modules/ClusterkitExamples/resources/js/Pages/Demo.jsx
+var Demo_exports = /* @__PURE__ */ __exportAll({ default: () => Demo });
+function Demo() {
+	return /* @__PURE__ */ jsxs("div", {
+		className: "flex min-h-screen items-center justify-center bg-gray-100",
+		children: [/* @__PURE__ */ jsx(Head, { title: "ClusterKit demo" }), /* @__PURE__ */ jsxs("div", {
+			className: "w-full max-w-lg space-y-3 rounded-lg bg-white p-8 shadow-sm",
+			children: [
+				/* @__PURE__ */ jsx("h1", {
+					className: "text-xl font-semibold text-gray-900",
+					children: "ClusterKit SSR demo"
+				}),
+				/* @__PURE__ */ jsxs("p", {
+					className: "text-sm text-gray-600",
+					children: [
+						"This page is served by the Inertia SSR pool orchestrated by",
+						" ",
+						/* @__PURE__ */ jsx("code", {
+							className: "rounded bg-gray-100 px-1.5 py-0.5",
+							children: "@goopil/clusterkit"
+						}),
+						". Rendered by:"
+					]
+				}),
+				/* @__PURE__ */ jsx("p", {
+					className: "text-lg font-semibold text-indigo-600",
+					children: typeof window === "undefined" ? "Server (ClusterKit SSR)" : "Browser (client hydration)"
+				}),
+				/* @__PURE__ */ jsxs("p", {
+					className: "text-xs text-gray-400",
+					children: ["Fire renders at it: ", /* @__PURE__ */ jsx("code", { children: "sail artisan examples:clusterkit:render --count=20" })]
+				})
+			]
+		})]
+	});
+}
 //#endregion
 //#region resources/js/Components/ApplicationLogo.jsx
 function ApplicationLogo(props) {
@@ -304,12 +341,17 @@ var JOBS = ["default", "high-priority"];
 var CONNECTIONS = [
 	"redis-sentinel",
 	"rabbit-rs",
+	"rabbit-rs-work",
+	"rabbit-rs-ia",
 	"both"
 ];
 var QUEUES = [
 	"default",
 	"high-priority",
-	"bulk"
+	"bulk",
+	"work",
+	"ia-summary",
+	"ia-embed"
 ];
 function StatCard({ label, value, accent = "" }) {
 	return /* @__PURE__ */ jsx("div", {
@@ -1721,6 +1763,7 @@ function render(page) {
 		title: (title) => `${title} - Laravel`,
 		resolve: (name) => {
 			const pages = /* #__PURE__ */ Object.assign({
+				"../../Modules/ClusterkitExamples/resources/js/Pages/Demo.jsx": Demo_exports,
 				"../../Modules/FrontLab/resources/js/Pages/Dashboard.jsx": Dashboard_exports,
 				"./Pages/Auth/ConfirmPassword.jsx": ConfirmPassword_exports,
 				"./Pages/Auth/ForgotPassword.jsx": ForgotPassword_exports,
