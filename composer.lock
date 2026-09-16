@@ -644,16 +644,16 @@
         },
         {
             "name": "goopil/rabbit-rs-laravel",
-            "version": "v0.3.6",
+            "version": "v0.3.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Goopil/rabbit-rs-laravel",
-                "reference": "d06807dab6654f58ea532758738c3b7885d2621a"
+                "reference": "e3eedffd001f6b75a91dde3e752b31abeb967f94"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/d06807dab6654f58ea532758738c3b7885d2621a",
-                "reference": "d06807dab6654f58ea532758738c3b7885d2621a",
+                "url": "https://api.github.com/repos/Goopil/rabbit-rs-laravel/zipball/e3eedffd001f6b75a91dde3e752b31abeb967f94",
+                "reference": "e3eedffd001f6b75a91dde3e752b31abeb967f94",
                 "shasum": ""
             },
             "require": {
@@ -670,7 +670,7 @@
                 "phpstan/phpstan": "^2.1"
             },
             "suggest": {
-                "ext-rabbit_rs": "Required to dispatch and consume jobs (^0.3.6). composer install succeeds without it; connections fail at resolution time until the native extension is loaded (pie install goopil/rabbit-rs-native).",
+                "ext-rabbit_rs": "Required to dispatch and consume jobs (^0.3.7). composer install succeeds without it; connections fail at resolution time until the native extension is loaded (pie install goopil/rabbit-rs-native).",
                 "laravel/horizon": "Required to use the Horizon dashboard integration (worker=horizon)"
             },
             "type": "library",
@@ -691,7 +691,7 @@
                 "MIT"
             ],
             "description": "Laravel queue driver for the Rabbit RS native extension",
-            "time": "2026-09-15T18:59:00+00:00"
+            "time": "2026-09-16T16:10:26+00:00"
         },
         {
             "name": "graham-campbell/result-type",
