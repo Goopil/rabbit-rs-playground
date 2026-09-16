@@ -2,6 +2,16 @@
 
 A Laravel Sail full-stack playground for the [php-rabbit-rs](https://github.com/Goopil/php-rabbit-rs) native PHP extension (Rust-powered RabbitMQ transport), running on **Laravel Octane (Swoole)**, **Horizon on Valkey Sentinel**, and **Inertia SSR orchestrated by ClusterKit** — with code organized in [nwidart/laravel-modules](https://github.com/nWidart/laravel-modules).
 
+## Goopil packages under test
+
+| Package | Role here | Dossier |
+|---------|-----------|---------|
+| [php-rabbit-rs](https://github.com/Goopil/php-rabbit-rs) + [rabbit-rs-laravel](https://github.com/Goopil/rabbit-rs-laravel) | Rust-native RabbitMQ transport for Laravel queues (Horizon-compatible, adaptive prefetch, delay buckets, dead-letter tooling) | [docs/upstream-rabbit-rs-laravel.md](docs/upstream-rabbit-rs-laravel.md) |
+| [laravel-redis-sentinel](https://github.com/Goopil/laravel-redis-sentinel) | Redis Sentinel driver for Laravel/Horizon — failover chaos-tested here (read/write splitting, master stickiness, `sentinel:status`) | [docs/upstream-laravel-redis-sentinel.md](docs/upstream-laravel-redis-sentinel.md) · [features](docs/features-laravel-redis-sentinel.md) |
+| [clusterkit](https://github.com/Goopil/clusterkit) | Inertia SSR process orchestrator (multi-worker fleet, crash escalation, Prometheus plugin) | [docs/upstream-clusterkit.md](docs/upstream-clusterkit.md) |
+
+Each dossier tracks upstream bugs, fixes (with playground verification evidence) and feature proposals — every finding has an executable guard in `tests/Feature/`.
+
 ## Architecture
 
 Everything runs in the single `laravel.test` Sail container under supervisord:
