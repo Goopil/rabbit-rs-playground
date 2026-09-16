@@ -21,6 +21,26 @@
 > a `rabbit-rs-cut` connection through the lab toxiproxy so the cut scenario replays in
 > two commands.
 >
+> **Session 2026-09-16 — v0.3.7** (package + ext 0.3.7 lockstep). Ships the fix wave for the
+> three bugs filed at the v0.3.6 roast — #308 (stranded in-flight window), #309 (closed-set pop
+> storm), #310 (broken env JSON). **Cut-recovery replay (215 jobs, stop-when-empty, cut 12 s
+> mid-drain, broker alive — 2/2 runs): 215 → 0 in one pass both runs, the stranded window is
+> served after the heal, zero message loss, zero terminal leak, and 0 ERROR entries in both
+> windows (v0.3.6 baseline: 889).** The documented `RABBIT_RS_PREFETCH` env JSON forms (fixed
+> and adaptive) boot the one-shot child and drain; a malformed env string fails loud with the
+> exact config path (`queue.connections.<name>.prefetch`), and the mono-connection supervisor
+> exits non-zero after burning the bounded re-arm budget (3 crashed children). **The fan-out
+> run exposed one new HIGH, filed: #317 — an unbounded spawn/crash storm (~484 children in
+> 40 s, supervisor never exits) when a connection config fails to compile; the changelog's
+> claimed depth-sampler warning does not surface on this path.** Two further findings, filed:
+> #318 (the auto-scaler admits on its own unacked in-flight window — every burst scales the
+> fleet to max-workers for work already claimed; the `ready + unacked` depth semantics are
+> deliberate upstream, the oscillation is untreated) and #319 (an empty drain now costs
+> ~19.6 s — the 15 s bounded poll at full price, no knob). Throughput A/B anomaly recorded:
+> fixed-16 sustained **78.9 jobs/s today vs 12.9 on the 0.3.6 dist** — no changelog entry on
+> the consume path; the adaptive profile rides at 71.2 jobs/s on the same harness (v0.3.6
+> baseline: 105). Suite: 83 tests, 77 pass, 6 skip, 0 fail.
+>
 > **Session 2026-09-13 — v0.3.2** (package + ext 0.3.2 lockstep — the package now enforces
 > `EXTENSION_CONSTRAINT ^0.3.2` at runtime; the doctor reports the constraint as satisfied).
 > The headline is the **auto-scaling / one-shot feature (upstream PR #262)**: `rabbit-rs:work`
@@ -125,10 +145,10 @@
 > gate — it now prints a soft warning (`consumer readiness not confirmed … within 30s`) and
 > exits **0**; the 30 s gate itself still burns the clock.
 
-## Current status — post-v0.3.4 (2026-09-13)
+## Current status — post-v0.3.7 (2026-09-16)
 
 Consolidated inventory across every finding in this dossier, as verified in this playground on the
-v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
+v0.3.7 dist (package + ext 0.3.7, lockstep enforced at runtime).
 
 ### Fixed and verified
 
@@ -157,18 +177,27 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
 
 ### Still open
 
-- **#308 — stop-when-empty abandons its in-flight window at a network-cut boundary** (filed
-  2026-09-15): recovery holds and the drain resumes, but the child exits at the cut boundary
-  while ~prefetch messages sit unacked in its window; the broker requeues them after the
-  consumer is gone and nothing picks them up — the queue silently stops draining. 2/2 runs.
-  Correlation suspected with the #296 deferred ack flush.
-- **#309 — closed-set pop retry storm during recovery** (filed 2026-09-15): after a cut, the
-  pop path samples the dead generation hundreds of times (889/48 ERROR-level entries in two
-  runs of the same scenario) before the live generation serves; unbounded cadence, drowning
-  log noise.
-- **#310 — documented `RABBIT_RS_PREFETCH` env JSON is broken** (filed 2026-09-15): the
-  compiler casts any string prefetch to a positive int, so the documented JSON throws at
-  boot and the one-shot child dies with no output at all.
+- **#317 — unbounded spawn/crash storm when a connection config fails to compile (fan-out)**
+  (filed 2026-09-16): `rabbit-rs:work` with the fan-out plan and a broken prefetch env string
+  starts every worker and then crash-spawns in a tight loop — ~484 children in 40 s, the
+  supervisor never exits, the log drowns in one ERROR per crash. The mono-connection path is
+  bounded (re-arm budget 3 → exit 1); the fan-out path is not. The changelog's claimed
+  depth-sampler warning ("warns when a connection config fails to compile instead of silently
+  dropping the connection from scaling") never surfaced on this path. The loud error's
+  `stderr` field is empty for compile failures — the diagnostic only lives in the shared
+  laravel.log.
+- **#318 — the auto-scaler admits on its own unacked in-flight window (burst oscillation)**
+  (filed 2026-09-16): the depth feeding admission now counts `messages_ready +
+  messages_unacknowledged` (deliberate per the #308 fix — an in-flight window must stay
+  visible to the drain check), but the same reading also feeds the scaler: one worker
+  (prefetch 16) claims a 3-job burst instantly, the scaler reads depth 3 and admits 2 more
+  workers for work already claimed and served — idle process churn on every burst, downscale
+  comes back later. Verified live: 1 → 3 workers for 3 × 10 s jobs, ready stayed 0 throughout.
+  The scaler should admit on `messages_ready` only; the drain check keeps the full reading.
+- **#319 — an empty `--stop-when-empty` drain costs ~19.6 s** (filed 2026-09-16): the
+  bounded 15 s poll the #308 fix adds after a zero reading runs at full price on a genuinely
+  empty queue — every CI drain smoke test eats ~20 s before exit. Needs a knob or a shorter
+  window when the queue has been empty since start.
 - **15.2 — quorum-TTL release is a floor with no ceiling** (lazy expiry on an idle broker;
   observed minutes past the deadline). Broker semantics — **documented limitation, non-goal**
   per #253 (mitigated by the keep-alive redeclare of live bucket queues, #211); the
@@ -179,16 +208,21 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
   (2026-09-14 reconciliation close-out). **Roast note 2026-09-15:** the playground-side
   throughput is window-limited at prefetch 16 (12.9 jobs/s sustained) and job-overhead-limited
   at 256+ (~24 jobs/s for instant jobs); the adaptive window reaching 105 jobs/s on the same
-  harness shows the supply side is no longer the only lever.
+  harness shows the supply side is no longer the only lever. **Roast note 2026-09-16
+  (v0.3.7):** the same fixed-16 harness now sustains **78.9 jobs/s** (vs 12.9 on 0.3.6) and
+  the adaptive profile rides at 71.2 jobs/s (vs 105 on 0.3.6) — an inversion and a 6× jump on
+  the fixed window with **no changelog entry on the consume path**; worth reconciling in the
+  #282 investigation (harness variance vs an unrecorded native-side change).
 - **Flush-timer latency caveat** (not a bug, flagged since 0.2.2): dispatch→broker is ~0–5 s
   under load, not the 1 ms `flush_interval` contract — re-measure rides with #282. Roast
   2026-09-15: dispatches of 215/300/3000 all flushed inside the 6 s settle window (ready
-  visible at first check); no regression observed.
+  visible at first check); no regression observed. Roast 2026-09-16 (v0.3.7): lone push
+  visible in ~1.6 s — no regression.
 - **`--max-jobs`/`--max-time` still only recycle the child** without stopping the supervisor —
-  by design now (`--stop-when-empty` is the CI mode). Roast 2026-09-15 note: `--stop-when-empty`
-  has its own boundary bug under recovery (#308 above).
+  by design now (`--stop-when-empty` is the CI mode). The #308 boundary bug is fixed and
+  verified on 0.3.7 (see the 2026-09-16 wave below).
 
-### Fixed by the 2026-09-14 wave (merged to main, **roast-re-verified on the v0.3.6 dist**)
+## Fixed by the 2026-09-14 wave (merged to main, **roast-re-verified on the v0.3.6 dist**)
 
 - **#287 / #291** — `--once` re-probes the depth uncached before the final drain decision; a
   stale memoized 0 or a memoized failed probe can no longer end the drain with work pending;
@@ -212,6 +246,30 @@ v0.3.4 dist (package + ext 0.3.4, lockstep enforced at runtime).
   package's classified texts.
 - **#253** closed as complete (reconciliation close-out) — its remaining live thread (the
   flush-timer re-measure) continues in #282.
+
+### Fixed by the 2026-09-16 wave (shipped in 0.3.7, **roast-re-verified on the v0.3.7 dist**)
+
+- **#308** — the in-flight window is no longer abandoned at a cut boundary: the management
+  depth now reports `messages_ready + messages_unacknowledged` and the one-shot drain check
+  polls the depth fresh for a bounded window (15 s) after a zero before concluding drained.
+  **Verified (cut-recovery replay, 2/2 runs):** 215 jobs, `--stop-when-empty`, cut 12 s
+  mid-drain with exactly the prefetch window unacked (16) at both boundaries, heal → the
+  window is served and the queue reaches 0 in one pass; zero message loss, zero terminal leak
+  (`cut-dead` empty), supervisor exit 0 both runs.
+- **#309** — the closed-set pop storm is damped: `pop()` recognizes the closed-set error,
+  evicts the terminal handle and retries inline within a bounded budget (2 refetches, 250 ms
+  then 500 ms) before throwing; the changelog promises one throw per ~1.75 s for longer
+  episodes. **Verified (same replay):** 0 ERROR entries in both run windows (v0.3.6
+  baseline: 889 per two runs) — the child recycles at the cut boundary, so even a 12 s
+  episode (≫ budget) produced zero throws.
+- **#310** — the documented `RABBIT_RS_PREFETCH` env JSON forms work: a JSON object string
+  decodes into the `fixed` or `adaptive` form instead of throwing at child boot; boot
+  failures are loud. **Verified:** both documented forms boot the one-shot child and drain
+  25 → 0; a malformed string fails loud with the exact config path
+  (`queue.connections.<name>.prefetch`) and the mono-connection supervisor exits non-zero
+  after the bounded re-arm budget (3 crashed children). Two caveats filed as #317: the
+  fan-out path is unbounded (crash storm, no exit) and the claimed depth-sampler warning
+  never surfaces on this path.
 
 ## Resolved upstream — verified in this playground
 
